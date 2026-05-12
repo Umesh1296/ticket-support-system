@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ticketflow-backend
+    env: node
+    buildCommand: "npm install"
+    startCommand: "node server/server.cjs"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: TICKETFLOW_AUTH_SECRET
+        sync: false
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/firebase-service-account.json
