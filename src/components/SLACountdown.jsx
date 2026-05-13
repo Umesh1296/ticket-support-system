@@ -33,5 +33,10 @@ export default function SLACountdown({ deadline, status }) {
     return () => clearInterval(id)
   }, [deadline, status])
 
-  return <span className={display.cls}>{display.label}</span>
+  return (
+    <span className={`sla-chip ${display.cls}`}>
+      <span className="sla-chip-dot" aria-hidden="true" />
+      {display.label}
+    </span>
+  )
 }

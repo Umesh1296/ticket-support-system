@@ -32,42 +32,34 @@ export default function AssignmentLogs({ API, addToast, refreshKey }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><span className="spinner spinner-lg" /></div>
+        <div className="empty-state card"><span className="spinner spinner-lg" /><div className="empty-state-title">Loading routing feed</div></div>
+      ) : logs.length === 0 ? (
+        <div className="empty-state card">
+          <Activity size={34} className="empty-state-icon" />
+          <div className="empty-state-title">No assignment decisions yet</div>
+          <div className="empty-state-sub">Create tickets to trigger smart assignment scoring.</div>
+        </div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Ticket</th>
-                <th>Priority</th>
-                <th>Assigned To</th>
-                <th>Score</th>
-                <th>Assigned At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr className="table-empty"><td colSpan={5}>No assignment logs yet. Create tickets to trigger auto-assignment.</td></tr>
-              ) : logs.map((log, i) => (
-                <tr key={i}>
-                  <td>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{log.ticket_title}</div>
-                  </td>
-                  <td><span className={`badge badge-${log.priority}`}>{log.priority}</span></td>
-                  <td style={{ fontWeight: 600, fontSize: 13 }}>{log.operator_name}</td>
-                  <td>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 800, color: 'var(--accent-2)' }}>
-                      {log.score ?? '—'}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>/115</span>
-                  </td>
-                  <td style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                    {new Date(log.assigned_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="routing-feed">
+          {logs.map((log, i) => (
+            <div key={i} className="routing-feed-item">
+              <div className="timeline-dot" style={{ background: log.priority === 'critical' ? 'var(--red)' : 'var(--accent)' }} />
+              <div className="routing-feed-content">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div className="resource-title">{log.ticket_title}</div>
+                    <div className="resource-subtitle">Assigned to {log.operator_name}</div>
+                  </div>
+                  <span className={`badge badge-${log.priority}`}>{log.priority}</span>
+                </div>
+                <div className="resource-metrics" style={{ marginTop: 12 }}>
+                  <div><strong>{log.score ?? '-'}</strong><span>Score</span></div>
+                  <div><strong>{log.priority}</strong><span>Priority</span></div>
+                  <div><strong>{new Date(log.assigned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong><span>Assigned</span></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

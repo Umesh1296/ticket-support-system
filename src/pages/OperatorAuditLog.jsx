@@ -22,7 +22,7 @@ const SERVICE_TYPE_LABELS = {
 function Stars({ n }) {
   return (
     <span style={{ color: 'var(--amber)', fontSize: 14 }}>
-      {'★'.repeat(n)}{'☆'.repeat(5 - n)}
+      {'*'.repeat(n)}{'.'.repeat(5 - n)}
     </span>
   )
 }
@@ -96,7 +96,7 @@ export default function OperatorAuditLog({ API, addToast }) {
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
         {/* Left: Operator list */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0 }}>
             Agents ({stats.length})
           </div>
           {stats.length === 0 ? (
@@ -255,7 +255,7 @@ export default function OperatorAuditLog({ API, addToast }) {
                                 wl.notes && { label: 'Notes', value: wl.notes },
                               ].filter(Boolean).map(item => (
                                 <div key={item.label} style={{ marginBottom: 8 }}>
-                                  <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{item.label}</div>
+                                  <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: 0, marginBottom: 3 }}>{item.label}</div>
                                   <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>{item.value}</div>
                                 </div>
                               ))}

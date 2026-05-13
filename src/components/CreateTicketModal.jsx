@@ -38,7 +38,7 @@ export default function CreateTicketModal({ API, currentUser, onClose, onSuccess
             <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-dim)', borderRadius: 'var(--r-md)', border: '1px solid var(--accent-glow)', alignItems: 'flex-start' }}>
               <Bot size={16} color="var(--accent-2)" style={{ marginTop: 1, flexShrink: 0 }} />
               <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5 }}>
-                Just describe your issue — our system will automatically classify the category and priority.
+                Just describe your issue. TicketFlow will automatically classify the category and priority.
               </div>
             </div>
 

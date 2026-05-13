@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  AlertCircle, BookOpen, CheckCircle, ChevronDown, CircleDot,
+  AlertCircle, BookOpen, Bot, CheckCircle, ChevronDown, CircleDot,
   Coffee, Headset, MessageSquare, Moon, Send, Shield, Ticket, User, X, Zap
 } from 'lucide-react'
 import WorkLogModal from '../components/WorkLogModal.jsx'
 import SLACountdown from '../components/SLACountdown.jsx'
+import { TicketFlowLogo } from '../components/Brand.jsx'
 import { getFriendlyErrorMessage } from '../lib/api.js'
 import { formatCategoryLabel } from '../lib/taxonomy.js'
 
@@ -213,15 +214,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
     <div className="agent-ws">
       {/* Top Nav */}
       <div className="agent-ws-topnav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 'var(--r-md)', background: 'linear-gradient(135deg, var(--accent), var(--accent-2))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={16} color="#fff" />
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>TicketFlow</div>
-            <div style={{ fontSize: 10.5, color: 'var(--text-3)' }}>Agent Workspace</div>
-          </div>
-        </div>
+        <TicketFlowLogo subtitle="Agent workspace" />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Status toggle */}
@@ -275,7 +268,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
           </div>
           <div className="agent-queue-search">
             <Ticket size={12} className="agent-queue-search-icon" style={{ top: '50%', left: 20 }} />
-            <input placeholder="Filter tickets…" value={queueSearch} onChange={e => setQueueSearch(e.target.value)} />
+            <input placeholder="Filter tickets..." value={queueSearch} onChange={e => setQueueSearch(e.target.value)} />
           </div>
           <div className="agent-queue-list">
             {sortedTickets.length === 0 ? (
@@ -298,7 +291,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
                   <SLACountdown deadline={t.sla_deadline} status={t.status} />
                 </div>
                 <div className="agent-queue-title">{t.title}</div>
-                <div className="agent-queue-name">{t.reporter_name} • {formatCategoryLabel(t.category)}</div>
+                <div className="agent-queue-name">{t.reporter_name} - {formatCategoryLabel(t.category)}</div>
               </button>
             ))}
           </div>
@@ -317,13 +310,19 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
               {/* Chat header */}
               <div className="agent-chat-header">
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{selectedTicket.display_id}</span>
                     <span className={`badge badge-${selectedTicket.priority}`} style={{ fontSize: 10 }}>{selectedTicket.priority}</span>
                     <span className={`badge badge-${selectedTicket.status}`} style={{ fontSize: 10 }}>{selectedTicket.status.replace('_', ' ')}</span>
+                    <SLACountdown deadline={selectedTicket.sla_deadline} status={selectedTicket.status} />
                   </div>
                   <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {selectedTicket.title}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, color: 'var(--text-3)', fontSize: 12, flexWrap: 'wrap' }}>
+                    <span>{selectedTicket.reporter_name}</span>
+                    <span>Owner: {currentUser?.name}</span>
+                    <span>{formatCategoryLabel(selectedTicket.category)}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -361,7 +360,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
                     <div key={msg._id} className="agent-chat-msg internal-note">
                       <div className="internal-note-badge"><BookOpen size={10} />Internal Note</div>
                       <div className="agent-chat-bubble">{msg.content}</div>
-                      <div className="agent-chat-time">{msg.sender_name} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="agent-chat-time">{msg.sender_name} - {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   ) : (
                     <div key={msg._id} className={`agent-chat-msg ${msg.sender_type === 'agent' ? 'outgoing' : 'incoming'}`}>
@@ -376,6 +375,19 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
 
               {/* Input */}
               <div className="agent-chat-input-area">
+                <div className="agent-ai-strip">
+                  <Bot size={14} />
+                  <span>
+                    AI draft: acknowledge the customer, state the next diagnostic step, and keep the SLA timer explicit.
+                  </span>
+                  <button
+                    className="btn btn-secondary btn-xs"
+                    type="button"
+                    onClick={() => setChatInput('Thanks for the details. I am reviewing the issue now and will keep this ticket moving before the SLA window closes.')}
+                  >
+                    Use draft
+                  </button>
+                </div>
                 <div className="agent-chat-tabs">
                   <button className={`agent-chat-tab ${chatMode === 'reply' ? 'active' : ''}`} onClick={() => setChatMode('reply')}>
                     <MessageSquare size={12} />Reply
@@ -387,7 +399,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
                 <div className={`agent-chat-compose ${chatMode === 'note' ? 'note-mode' : ''}`}>
                   <textarea
                     rows={2}
-                    placeholder={chatMode === 'note' ? 'Add an internal note (not visible to customer)…' : 'Type a reply…'}
+                    placeholder={chatMode === 'note' ? 'Add an internal note (not visible to customer)...' : 'Type a reply...'}
                     value={chatInput}
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={handleChatKey}
@@ -432,6 +444,26 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
             </div>
           ) : (
             <>
+              {/* AI summary */}
+              <div className="context-section">
+                <div className="context-section-title"><Bot size={11} />AI Summary</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--bg-secondary)', padding: '10px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
+                  {selectedTicket.priority === 'critical'
+                    ? 'Critical ticket with elevated SLA risk. Keep updates short, visible, and action-oriented.'
+                    : 'Ticket context is ready. Use the conversation, customer history, and category to resolve quickly.'}
+                </div>
+              </div>
+
+              {/* Lifecycle */}
+              <div className="context-section">
+                <div className="context-section-title"><Shield size={11} />Lifecycle</div>
+                <div className="ticket-lifecycle-mini">
+                  {['open', 'assigned', 'in_progress', 'resolved'].map(step => (
+                    <span key={step} className={selectedTicket.status === step ? 'active' : ''}>{step.replace('_', ' ')}</span>
+                  ))}
+                </div>
+              </div>
+
               {/* Customer */}
               <div className="context-section">
                 <div className="context-section-title"><User size={11} />Customer</div>
@@ -485,6 +517,12 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Attachments */}
+              <div className="context-section">
+                <div className="context-section-title"><AlertCircle size={11} />Attachments</div>
+                <div style={{ fontSize: 12, color: 'var(--text-4)' }}>No attachments added to this ticket.</div>
               </div>
 
               {/* Workflow actions */}

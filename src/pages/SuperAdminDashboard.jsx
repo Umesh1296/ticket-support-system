@@ -13,7 +13,7 @@ function CreateManagerModal({ API, addToast, onClose, onCreated }) {
     try {
       const { data } = await API.post('/superadmin/managers', form)
       const creds = data.data?.credentials
-      addToast(`${data.data.manager.name} created${creds ? ` — Password: ${creds.password}` : ''}`, 'success')
+      addToast(`${data.data.manager.name} created${creds ? ` - Password: ${creds.password}` : ''}`, 'success')
       onCreated(); onClose()
     } catch (err) { addToast(getFriendlyErrorMessage(err, 'Failed to create manager'), 'error') }
     finally { setLoading(false) }

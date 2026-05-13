@@ -275,72 +275,62 @@ export default function Operators({ API, addToast, onRefresh, refreshKey }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><span className="spinner spinner-lg" /></div>
+        <div className="empty-state card"><span className="spinner spinner-lg" /><div className="empty-state-title">Loading agents</div></div>
+      ) : operators.length === 0 ? (
+        <div className="empty-state card">
+          <Users size={34} className="empty-state-icon" />
+          <div className="empty-state-title">No agents configured</div>
+          <div className="empty-state-sub">Add support agents to start routing work by skill and capacity.</div>
+        </div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Agent</th>
-                <th>Display ID</th>
-                <th>Status</th>
-                <th>Load</th>
-                <th>Skills</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {operators.length === 0 ? (
-                <tr className="table-empty"><td colSpan={6}>No agents yet. Add one to start routing tickets.</td></tr>
-              ) : operators.map(op => (
-                <tr key={op.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--blue-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: 'var(--blue)', flexShrink: 0 }}>
-                        {op.name?.charAt(0) || '?'}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{op.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{op.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-3)' }}>{op.display_id}</span></td>
-                  <td><span className={`badge badge-${op.status}`}>{op.status}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 100 }}>
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{
-                          width: `${op.load_percentage}%`,
-                          background: op.load_percentage >= 90 ? 'var(--red)' : op.load_percentage >= 60 ? 'var(--amber)' : 'var(--green)',
-                        }} />
-                      </div>
-                      <span style={{ fontSize: 10.5, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                        {op.current_load}/{op.max_load} - {op.load_percentage}%
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="skill-list">
-                      {(op.skills || []).map(skill => (
-                        <span key={skill} className="skill-tag">{formatCategoryLabel(skill)}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-secondary btn-xs" onClick={() => handleReset(op)} disabled={resettingId === op.id} title="Reset password">
-                        {resettingId === op.id ? <span className="spinner spinner-sm" /> : <Key size={11} />}
-                      </button>
-                      <button className="btn btn-danger btn-xs" onClick={() => handleDelete(op)} disabled={deletingId === op.id} title="Remove agent">
-                        {deletingId === op.id ? <span className="spinner spinner-sm" /> : <Trash2 size={11} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="resource-grid">
+          {operators.map(op => (
+            <div key={op.id} className="resource-card card-hover">
+              <div className="resource-card-head">
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--blue-dim)', color: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 760, flexShrink: 0 }}>
+                  {op.name?.charAt(0) || '?'}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="resource-title">{op.name}</div>
+                  <div className="resource-subtitle">{op.email}</div>
+                </div>
+                <span className={`badge badge-${op.status}`}>{op.status}</span>
+              </div>
+
+              <div className="resource-load">
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: 'var(--text-3)', fontSize: 12, marginBottom: 6 }}>
+                  <span>{op.display_id}</span>
+                  <span style={{ fontFamily: 'var(--mono)' }}>{op.current_load}/{op.max_load} - {op.load_percentage}%</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{
+                    width: `${op.load_percentage}%`,
+                    background: op.load_percentage >= 90 ? 'var(--red)' : op.load_percentage >= 60 ? 'var(--amber)' : 'var(--green)',
+                  }} />
+                </div>
+              </div>
+
+              <div className="skill-list">
+                {(op.skills || []).length === 0 ? (
+                  <span style={{ color: 'var(--text-4)', fontSize: 12 }}>No skills</span>
+                ) : (op.skills || []).map(skill => (
+                  <span key={skill} className="skill-tag">{formatCategoryLabel(skill)}</span>
+                ))}
+              </div>
+
+              <div className="resource-footer">
+                <span>{op.current_load >= op.max_load ? 'At capacity' : 'Ready for work'}</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-secondary btn-xs" onClick={() => handleReset(op)} disabled={resettingId === op.id} title="Reset password">
+                    {resettingId === op.id ? <span className="spinner spinner-sm" /> : <Key size={12} />}
+                  </button>
+                  <button className="btn btn-danger btn-xs" onClick={() => handleDelete(op)} disabled={deletingId === op.id} title="Remove agent">
+                    {deletingId === op.id ? <span className="spinner spinner-sm" /> : <Trash2 size={12} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

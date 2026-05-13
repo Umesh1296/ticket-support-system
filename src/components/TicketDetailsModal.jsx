@@ -144,7 +144,7 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
                     </div>
                     <div>
                       <div className="detail-label">Assigned To</div>
-                      <div className="detail-value">{full.operator_name || '—'}</div>
+                      <div className="detail-value">{full.operator_name || '-'}</div>
                       {full.operator_email && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{full.operator_email}</div>}
                     </div>
                   </div>
@@ -165,7 +165,7 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
                     </div>
                     <div>
                       <div className="detail-label">Resolved</div>
-                      <div className="detail-value">{full.resolved_at ? new Date(full.resolved_at).toLocaleString() : '—'}</div>
+                      <div className="detail-value">{full.resolved_at ? new Date(full.resolved_at).toLocaleString() : '-'}</div>
                     </div>
                   </div>
 
@@ -179,7 +179,7 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
                             <span style={{ fontWeight: 600 }}>{log.operator_name || 'Unknown'}</span>
                             <span style={{ color: 'var(--text-3)', marginLeft: 8 }}>{log.reason?.split(';')[0]}</span>
                           </div>
-                          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent-2)' }}>Score: {log.score || '—'}</div>
+                          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent-2)' }}>Score: {log.score || '-'}</div>
                         </div>
                       ))}
                     </div>
@@ -257,7 +257,7 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
                           <div className="timeline-dot" style={{ background: 'var(--accent)' }} />
                           <div className="timeline-content">
                             <div className="timeline-type">Assigned to {log.operator_name || 'Unknown'}</div>
-                            <div className="timeline-meta">{new Date(log.assigned_at).toLocaleString()} • Score: {log.score} • {log.reason}</div>
+                            <div className="timeline-meta">{new Date(log.assigned_at).toLocaleString()} - Score: {log.score} - {log.reason}</div>
                           </div>
                         </div>
                       ))}

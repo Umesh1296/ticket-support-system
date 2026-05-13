@@ -13,7 +13,7 @@ function CreateEmployeeModal({ API, addToast, onClose, onCreated }) {
     try {
       const { data } = await API.post('/employees', form)
       const creds = data.data?.credentials
-      addToast(`${data.data.employee.name} added${creds ? ` — Password: ${creds.password}` : ''}`, 'success')
+      addToast(`${data.data.employee.name} added${creds ? ` - Password: ${creds.password}` : ''}`, 'success')
       onCreated()
       onClose()
     } catch (err) {
@@ -121,58 +121,47 @@ export default function Employees({ API, addToast, onRefresh, refreshKey }) {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><span className="spinner spinner-lg" /></div>
+        <div className="empty-state card"><span className="spinner spinner-lg" /><div className="empty-state-title">Loading users</div></div>
+      ) : employees.length === 0 ? (
+        <div className="empty-state card">
+          <UserRound size={34} className="empty-state-icon" />
+          <div className="empty-state-title">No end users yet</div>
+          <div className="empty-state-sub">Add end users so employees can submit and track requests.</div>
+        </div>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Display ID</th>
-                <th>Tickets</th>
-                <th>Active</th>
-                <th>Resolved</th>
-                <th>Last Ticket</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.length === 0 ? (
-                <tr className="table-empty"><td colSpan={7}>No end users yet. Add one to get started.</td></tr>
-              ) : employees.map(emp => (
-                <tr key={emp.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: 'var(--accent-2)', flexShrink: 0 }}>
-                        {emp.name?.charAt(0) || '?'}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{emp.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-3)' }}>{emp.display_id}</span></td>
-                  <td><span style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>{emp.total_tickets}</span></td>
-                  <td><span style={{ fontFamily: 'var(--mono)', color: emp.active_tickets > 0 ? 'var(--amber)' : 'var(--text-3)' }}>{emp.active_tickets}</span></td>
-                  <td><span style={{ fontFamily: 'var(--mono)', color: 'var(--green)' }}>{emp.resolved_tickets}</span></td>
-                  <td style={{ fontSize: 11.5, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                    {emp.last_ticket_at ? new Date(emp.last_ticket_at).toLocaleDateString() : '—'}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-secondary btn-xs" onClick={() => handleResetPassword(emp)} disabled={resettingId === emp.id} title="Reset password">
-                        {resettingId === emp.id ? <span className="spinner spinner-sm" /> : <Key size={11} />}
-                      </button>
-                      <button className="btn btn-danger btn-xs" onClick={() => handleDelete(emp)} disabled={deletingId === emp.id} title="Remove user">
-                        {deletingId === emp.id ? <span className="spinner spinner-sm" /> : <Trash2 size={11} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="resource-grid">
+          {employees.map(emp => (
+            <div key={emp.id} className="resource-card card-hover">
+              <div className="resource-card-head">
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-dim)', color: 'var(--accent-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 760, flexShrink: 0 }}>
+                  {emp.name?.charAt(0) || '?'}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="resource-title">{emp.name}</div>
+                  <div className="resource-subtitle">{emp.email}</div>
+                </div>
+                <span className="resource-id">{emp.display_id}</span>
+              </div>
+
+              <div className="resource-metrics">
+                <div><strong>{emp.total_tickets}</strong><span>Total</span></div>
+                <div><strong style={{ color: emp.active_tickets > 0 ? 'var(--amber)' : 'var(--text-3)' }}>{emp.active_tickets}</strong><span>Active</span></div>
+                <div><strong style={{ color: 'var(--green)' }}>{emp.resolved_tickets}</strong><span>Resolved</span></div>
+              </div>
+
+              <div className="resource-footer">
+                <span>Last ticket: {emp.last_ticket_at ? new Date(emp.last_ticket_at).toLocaleDateString() : 'No activity'}</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-secondary btn-xs" onClick={() => handleResetPassword(emp)} disabled={resettingId === emp.id} title="Reset password">
+                    {resettingId === emp.id ? <span className="spinner spinner-sm" /> : <Key size={12} />}
+                  </button>
+                  <button className="btn btn-danger btn-xs" onClick={() => handleDelete(emp)} disabled={deletingId === emp.id} title="Remove user">
+                    {deletingId === emp.id ? <span className="spinner spinner-sm" /> : <Trash2 size={12} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

@@ -20,14 +20,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-// Safe initialization — never crash the app if Firebase config is missing
+// Safe initialization: never crash the app if Firebase config is missing
 let app = null
 let auth = null
 const googleProvider = new GoogleAuthProvider()
 
 try {
   if (!firebaseConfig.apiKey) {
-    console.warn('[TicketFlow] Firebase env vars not set — running without Firebase Auth. Local login only.')
+    console.warn('[TicketFlow] Firebase env vars not set. Running without Firebase Auth. Local login only.')
   } else {
     app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
     auth = getAuth(app)

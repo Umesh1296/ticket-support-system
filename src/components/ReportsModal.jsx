@@ -56,13 +56,13 @@ export default function ReportsModal({ API, addToast, onClose }) {
                   {reports.map(r => (
                     <tr key={r.id}>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{r.ticket?.title || '—'}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{r.ticket?.title || '-'}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                          {r.ticket?.display_id} • <span className={`badge badge-${r.ticket?.priority}`} style={{ fontSize: 10 }}>{r.ticket?.priority}</span>
+                          {r.ticket?.display_id} - <span className={`badge badge-${r.ticket?.priority}`} style={{ fontSize: 10 }}>{r.ticket?.priority}</span>
                         </div>
                       </td>
                       <td style={{ fontSize: 12.5 }}>{r.reporter_name}</td>
-                      <td style={{ fontSize: 12.5 }}>{r.operator_name || '—'}</td>
+                      <td style={{ fontSize: 12.5 }}>{r.operator_name || '-'}</td>
                       <td style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text-3)' }}>
                         {new Date(r.resolved_at).toLocaleDateString()}
                       </td>

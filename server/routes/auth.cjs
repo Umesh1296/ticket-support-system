@@ -6,25 +6,13 @@ const {
   SUPER_ADMIN_EMAIL,
   SUPER_ADMIN_PASSWORD,
   createAuthToken,
-  createUserAccount,
-  emailExistsAcrossRoles,
   getAuthConfig,
-  getStoredUserProfile,
-  isValidRole,
+  getRoleMethods,
   requireAuth,
   sanitizeUser,
-  hashPassword,
   verifyPassword,
 } = require('../auth.cjs')
-const { verifyFirebaseToken, createFirebaseAuthUser } = require('../firebase.cjs')
-
-function canAccessTicket(user, ticket) {
-  if (user.role === ROLES.super_admin) return true
-  if (user.role === ROLES.manager) return true
-  if (user.role === ROLES.operator) return ticket.assigned_to === user.id
-  if (ticket.reporter_user_id) return ticket.reporter_user_id === user.id
-  return ticket.reporter_email?.toLowerCase() === user.email.toLowerCase()
-}
+const { verifyFirebaseToken } = require('../firebase.cjs')
 
 function timingSafeTextEqual(left, right) {
   if (typeof left !== 'string' || typeof right !== 'string') return false
@@ -32,6 +20,21 @@ function timingSafeTextEqual(left, right) {
   const rightBuffer = Buffer.from(right)
   if (leftBuffer.length !== rightBuffer.length) return false
   return crypto.timingSafeEqual(leftBuffer, rightBuffer)
+}
+
+async function findProvisionedAccountByEmail(store, email) {
+  const [superAdmin, manager, operator, employee] = await Promise.all([
+    store.findSuperAdminByEmail(email),
+    store.findManagerByEmail(email),
+    store.findOperatorByEmail(email),
+    store.findEmployeeByEmail(email),
+  ])
+
+  if (superAdmin) return { user: superAdmin, role: ROLES.super_admin }
+  if (manager) return { user: manager, role: ROLES.manager }
+  if (operator) return { user: operator, role: ROLES.operator }
+  if (employee) return { user: employee, role: ROLES.employee }
+  return null
 }
 
 async function ensureSuperAdminAccount(store, { email, name = 'Super Admin', firebase_uid = null, provider = 'local' }) {
@@ -55,7 +58,9 @@ async function ensureSuperAdminAccount(store, { email, name = 'Super Admin', fir
   if (provider && superAdmin.provider !== provider && (firebase_uid || !superAdmin.provider || superAdmin.provider === 'local')) {
     updates.provider = provider
   }
-  if ((!superAdmin.name || superAdmin.name === 'Super Admin') && name && superAdmin.name !== name) updates.name = name
+  if ((!superAdmin.name || superAdmin.name === 'Super Admin') && name && superAdmin.name !== name) {
+    updates.name = name
+  }
 
   if (Object.keys(updates).length > 0) {
     superAdmin = await store.updateSuperAdmin(superAdmin.id, updates)
@@ -64,22 +69,17 @@ async function ensureSuperAdminAccount(store, { email, name = 'Super Admin', fir
   return superAdmin
 }
 
-/**
- * Helper: find a user across all role collections and return { user, role }.
- */
-async function findUserAcrossRoles(store, email) {
-  const [superAdmin, manager, operator, employee] = await Promise.all([
-    store.findSuperAdminByEmail(email),
-    store.findManagerByEmail(email),
-    store.findOperatorByEmail(email),
-    store.findEmployeeByEmail(email),
-  ])
+async function bindFirebaseProfile(store, account, decoded) {
+  const provider = decoded.provider === 'google.com' ? 'google' : 'firebase'
+  const updates = {}
+  if (decoded.uid && !account.user.firebase_uid) updates.firebase_uid = decoded.uid
+  if (provider && account.user.provider !== provider) updates.provider = provider
 
-  if (superAdmin) return { user: superAdmin, role: ROLES.super_admin }
-  if (manager) return { user: manager, role: ROLES.manager }
-  if (operator) return { user: operator, role: ROLES.operator }
-  if (employee) return { user: employee, role: ROLES.employee }
-  return null
+  if (!Object.keys(updates).length) return account.user
+
+  const methods = getRoleMethods(store, account.role)
+  const updated = await methods.update(account.user.id, updates)
+  return updated || account.user
 }
 
 module.exports = (store) => {
@@ -94,16 +94,13 @@ module.exports = (store) => {
     }
   })
 
-  /**
-   * Firebase Login — verify Firebase ID token, auto-detect role from MongoDB.
-   * Role parameter is no longer required — the system finds the user automatically.
-   */
   router.post('/firebase-login', async (req, res) => {
     try {
       const { idToken } = req.body
-      if (!idToken) return res.status(400).json({ success: false, error: 'Firebase ID token is required' })
+      if (!idToken) {
+        return res.status(400).json({ success: false, error: 'Firebase ID token is required' })
+      }
 
-      // Verify the Firebase token
       const decoded = await verifyFirebaseToken(idToken)
       if (!decoded || !decoded.email) {
         return res.status(401).json({ success: false, error: 'Invalid Firebase token' })
@@ -111,7 +108,6 @@ module.exports = (store) => {
 
       const email = decoded.email.toLowerCase()
 
-      // Super Admin check — if this email matches the configured super admin
       if (SUPER_ADMIN_EMAIL && email === SUPER_ADMIN_EMAIL) {
         const superAdmin = await ensureSuperAdminAccount(store, {
           email,
@@ -128,31 +124,20 @@ module.exports = (store) => {
         })
       }
 
-      // Auto-detect role by searching across all collections
-      const found = await findUserAcrossRoles(store, email)
-
-      if (found) {
-        let { user, role } = found
-
-        // Update firebase_uid if missing
-        if (!user.firebase_uid) {
-          const methods = require('../auth.cjs').getRoleMethods(store, role)
-          await methods.update(user.id, { firebase_uid: decoded.uid, provider: decoded.provider === 'google.com' ? 'google' : 'firebase' })
-          user = await methods.findById(user.id)
-        }
-
-        const token = createAuthToken(user)
-        return res.json({
-          success: true,
-          data: { token, user: sanitizeUser(user, role) },
-          message: 'Login successful',
+      const account = await findProvisionedAccountByEmail(store, email)
+      if (!account) {
+        return res.status(403).json({
+          success: false,
+          error: 'This account is not provisioned in TicketFlow. Contact your administrator.',
         })
       }
 
-      // User not found in any collection
-      return res.status(403).json({
-        success: false,
-        error: 'No account found for this email. Accounts are provisioned by administrators.',
+      const user = await bindFirebaseProfile(store, account, decoded)
+      const token = createAuthToken(user)
+      return res.json({
+        success: true,
+        data: { token, user: sanitizeUser(user, account.role) },
+        message: 'Login successful',
       })
     } catch (err) {
       console.error('[Auth] Firebase login error:', err.message)
@@ -160,10 +145,6 @@ module.exports = (store) => {
     }
   })
 
-  /**
-   * Local Login — auto-detect role, verify password against the matched account.
-   * Role parameter is no longer required.
-   */
   router.post('/local-login', async (req, res) => {
     try {
       const { email, password } = req.body
@@ -173,7 +154,6 @@ module.exports = (store) => {
 
       const normalizedEmail = email.toLowerCase()
 
-      // Super Admin check first
       if (SUPER_ADMIN_EMAIL && normalizedEmail === SUPER_ADMIN_EMAIL) {
         if (!SUPER_ADMIN_PASSWORD) {
           return res.status(403).json({
@@ -196,28 +176,20 @@ module.exports = (store) => {
         return res.json({
           success: true,
           data: { token, user: sanitizeUser(superAdmin, ROLES.super_admin) },
-          message: 'Super Admin login successful',
+          message: 'Super Admin login successful via local password',
         })
       }
 
-      // Auto-detect role by searching across all collections
-      const found = await findUserAcrossRoles(store, normalizedEmail)
-
-      if (!found) {
+      const account = await findProvisionedAccountByEmail(store, normalizedEmail)
+      if (!account || !verifyPassword(password, account.user.password_hash)) {
         return res.status(401).json({ success: false, error: 'Invalid email or password' })
       }
 
-      const { user, role } = found
-
-      if (!verifyPassword(password, user.password_hash)) {
-        return res.status(401).json({ success: false, error: 'Invalid email or password' })
-      }
-
-      const token = createAuthToken(user)
+      const token = createAuthToken(account.user)
       return res.json({
         success: true,
-        data: { token, user: sanitizeUser(user, role) },
-        message: 'Login successful',
+        data: { token, user: sanitizeUser(account.user, account.role) },
+        message: 'Login successful via local fallback',
       })
     } catch (err) {
       console.error('[Auth] Local login error:', err.message)
@@ -225,17 +197,14 @@ module.exports = (store) => {
     }
   })
 
-  /**
-   * Get current user profile
-   */
   router.get('/me', requireAuth, async (req, res) => {
     try {
       const email = req.user.email
       if (!email) return res.status(401).json({ success: false, error: 'No email found' })
 
-      const found = await findUserAcrossRoles(store, email)
+      const found = await findProvisionedAccountByEmail(store, email.toLowerCase())
       if (!found) {
-        return res.status(401).json({ success: false, error: 'Account not found. Please register first.' })
+        return res.status(401).json({ success: false, error: 'Account not found. Contact your administrator.' })
       }
 
       res.json({

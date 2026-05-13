@@ -1,8 +1,24 @@
 import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Activity, AlertTriangle, BarChart2,
-  ClipboardCheck, Crown, FileText, Headset, LogOut, Menu, Moon,
-  RefreshCw, Settings, Shield, Sun, Ticket, UserRound, X, Zap
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  ClipboardCheck,
+  Crown,
+  FileText,
+  Headset,
+  LogOut,
+  Menu,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RefreshCw,
+  Settings,
+  Shield,
+  Sun,
+  Ticket,
+  UserRound,
+  X,
 } from 'lucide-react'
 import Toast from './components/Toast.jsx'
 import LoginPage from './components/LoginPage.jsx'
@@ -10,6 +26,7 @@ import CreateTicketModal from './components/CreateTicketModal.jsx'
 import CustomerSupportWidget from './components/CustomerSupportWidget.jsx'
 import ReportsModal from './components/ReportsModal.jsx'
 import LiveOperationsMap from './components/LiveOperationsMap.jsx'
+import { TicketFlowLogo, TicketFlowMark } from './components/Brand.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Tickets from './pages/Tickets.jsx'
 import Employees from './pages/Employees.jsx'
@@ -23,50 +40,107 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard.jsx'
 import { createAPI } from './lib/api.js'
 import { firebaseSignOut } from './lib/firebase.js'
 
-// ─── ERROR BOUNDARY ──────────────────────────────────────────────────────────
 class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { error: null } }
-  static getDerivedStateFromError(err) { return { error: err } }
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+
+  static getDerivedStateFromError(err) {
+    return { error: err }
+  }
+
   render() {
     if (this.state.error) {
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32, fontFamily: 'sans-serif' }}>
-          <div style={{ fontSize: 40 }}>⚡</div>
-          <h2 style={{ margin: 0 }}>Something went wrong</h2>
-          <p style={{ color: '#666', textAlign: 'center', maxWidth: 400 }}>{this.state.error.message}</p>
-          <button onClick={() => { this.setState({ error: null }); window.location.reload() }} style={{ padding: '10px 20px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>
-            Reload Page
+        <div className="error-screen">
+          <TicketFlowMark size={48} />
+          <h2>Something went wrong</h2>
+          <p>{this.state.error.message}</p>
+          <button
+            onClick={() => {
+              this.setState({ error: null })
+              window.location.reload()
+            }}
+            className="btn btn-primary"
+          >
+            Reload TicketFlow
           </button>
         </div>
       )
     }
+
     return this.props.children
   }
 }
 
-// ─── NAV CONFIG ──────────────────────────────────────────────────────────────
-const MANAGER_NAV = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
-  { id: 'tickets', label: 'Tickets', icon: Ticket },
-  { id: 'employees', label: 'End Users', icon: UserRound },
-  { id: 'operators', label: 'Agents', icon: Headset },
-  { id: 'assignment_logs', label: 'Assignment Logs', icon: Activity },
-  { id: 'audit_log', label: 'Audit Log', icon: ClipboardCheck },
-  { id: 'settings', label: 'Settings', icon: Settings },
-]
+const NAV_GROUPS = {
+  manager: [
+    {
+      label: 'Command',
+      items: [
+        { id: 'dashboard', label: 'Operations', icon: BarChart3 },
+        { id: 'tickets', label: 'Tickets', icon: Ticket },
+      ],
+    },
+    {
+      label: 'People',
+      items: [
+        { id: 'employees', label: 'End Users', icon: UserRound },
+        { id: 'operators', label: 'Agents', icon: Headset },
+      ],
+    },
+    {
+      label: 'Governance',
+      items: [
+        { id: 'assignment_logs', label: 'Routing', icon: Activity },
+        { id: 'audit_log', label: 'Audit', icon: ClipboardCheck },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ],
+    },
+  ],
+  super_admin: [
+    {
+      label: 'System',
+      items: [
+        { id: 'super_dashboard', label: 'Control Center', icon: Crown },
+        { id: 'dashboard', label: 'Manager Context', icon: BarChart3 },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { id: 'tickets', label: 'Tickets', icon: Ticket },
+        { id: 'employees', label: 'End Users', icon: UserRound },
+        { id: 'operators', label: 'Agents', icon: Headset },
+      ],
+    },
+    {
+      label: 'Governance',
+      items: [
+        { id: 'assignment_logs', label: 'Routing', icon: Activity },
+        { id: 'audit_log', label: 'Audit', icon: ClipboardCheck },
+        { id: 'settings', label: 'Settings', icon: Settings },
+      ],
+    },
+  ],
+}
 
-const SUPER_ADMIN_NAV = [
-  { id: 'super_dashboard', label: 'System Overview', icon: Crown },
-  { id: 'dashboard', label: 'Manager Dashboard', icon: BarChart2 },
-  { id: 'tickets', label: 'Tickets', icon: Ticket },
-  { id: 'employees', label: 'End Users', icon: UserRound },
-  { id: 'operators', label: 'Agents', icon: Headset },
-  { id: 'assignment_logs', label: 'Assignment Logs', icon: Activity },
-  { id: 'audit_log', label: 'Audit Log', icon: ClipboardCheck },
-  { id: 'settings', label: 'Settings', icon: Settings },
-]
+function flattenNav(groups) {
+  return groups.flatMap(group => group.items)
+}
 
-// ─── TOAST HOOK ───────────────────────────────────────────────────────────────
+function getHomePage(role) {
+  if (role === 'operator') return 'workspace'
+  if (role === 'employee') return 'my_tickets'
+  if (role === 'super_admin') return 'super_dashboard'
+  return 'dashboard'
+}
+
+function roleLabel(role) {
+  return role?.replace('_', ' ') || 'workspace'
+}
+
 function useToast() {
   const [toasts, setToasts] = useState([])
   const addToast = (message, type = 'info') => {
@@ -77,7 +151,6 @@ function useToast() {
   return { toasts, addToast }
 }
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function AppInner() {
   const [authState, setAuthState] = useState('checking')
   const [currentUser, setCurrentUser] = useState(null)
@@ -87,6 +160,9 @@ function AppInner() {
   })
   const [page, setPage] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('tf_sidebar_collapsed') === 'true' } catch { return false }
+  })
   const [dashStats, setDashStats] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCreateTicket, setShowCreateTicket] = useState(false)
@@ -96,25 +172,21 @@ function AppInner() {
   const { toasts, addToast } = useToast()
   const statsIntervalRef = useRef(null)
 
-  // Stable API instance — only recreate when token or impersonation changes
   const API = useMemo(
     () => createAPI(token, impersonatingManagerId),
-    [token, impersonatingManagerId]
+    [token, impersonatingManagerId],
   )
 
-  // Bootstrap auth from localStorage
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('ticketflow_token')
+      const storedToken = localStorage.getItem('ticketflow_token') || localStorage.getItem('ticketflow_auth_token')
       const storedUser = localStorage.getItem('ticketflow_user')
       if (storedToken && storedUser) {
         const user = JSON.parse(storedUser)
         setCurrentUser(user)
         setToken(storedToken)
         setAuthState('authenticated')
-        if (user.role === 'operator') setPage('workspace')
-        else if (user.role === 'employee') setPage('my_tickets')
-        else if (user.role === 'super_admin') setPage('super_dashboard')
+        setPage(getHomePage(user.role))
       } else {
         setAuthState('unauthenticated')
       }
@@ -123,36 +195,36 @@ function AppInner() {
     }
   }, [])
 
-  // Apply theme to <html>
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     try { localStorage.setItem('tf_theme', theme) } catch {}
   }, [theme])
 
+  useEffect(() => {
+    try { localStorage.setItem('tf_sidebar_collapsed', String(sidebarCollapsed)) } catch {}
+  }, [sidebarCollapsed])
+
   const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
 
-  // Login handler
   const handleFirebaseLogin = ({ token: newToken, user }) => {
     try {
       localStorage.setItem('ticketflow_token', newToken)
+      localStorage.setItem('ticketflow_auth_token', newToken)
       localStorage.setItem('ticketflow_user', JSON.stringify(user))
       localStorage.setItem('ticketflow_user_role', user.role)
     } catch {}
     setToken(newToken)
     setCurrentUser(user)
     setAuthState('authenticated')
-    if (user.role === 'operator') setPage('workspace')
-    else if (user.role === 'employee') setPage('my_tickets')
-    else if (user.role === 'super_admin') setPage('super_dashboard')
-    else setPage('dashboard')
+    setPage(getHomePage(user.role))
   }
 
-  // Sign out
   const handleSignOut = async () => {
     try { await API.post('/auth/logout') } catch {}
     try { await firebaseSignOut() } catch {}
     try {
       localStorage.removeItem('ticketflow_token')
+      localStorage.removeItem('ticketflow_auth_token')
       localStorage.removeItem('ticketflow_user')
       localStorage.removeItem('ticketflow_user_role')
     } catch {}
@@ -164,7 +236,6 @@ function AppInner() {
     setImpersonatingManagerName(null)
   }
 
-  // Dashboard stats polling
   const fetchStats = async () => {
     if (!['manager', 'super_admin'].includes(currentUser?.role)) return
     try {
@@ -189,20 +260,16 @@ function AppInner() {
   const slaCompliance = dashStats?.sla?.compliance_rate ?? null
   const agentsAvailable = dashStats?.operators?.available || 0
 
-  // ── LOADING ──────────────────────────────────────────────────────────────────
   if (authState === 'checking') {
     return (
       <div className="loading-screen">
-        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#4f46e5,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>
-          <Zap size={26} color="#fff" />
-        </div>
-        <span className="spinner" style={{ width: 28, height: 28 }} />
-        <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Loading TicketFlow…</span>
+        <TicketFlowMark size={54} />
+        <span className="spinner spinner-lg" />
+        <span>Opening TicketFlow</span>
       </div>
     )
   }
 
-  // ── LOGIN ─────────────────────────────────────────────────────────────────────
   if (authState === 'unauthenticated') {
     return (
       <>
@@ -214,7 +281,6 @@ function AppInner() {
     )
   }
 
-  // ── AGENT WORKSPACE ───────────────────────────────────────────────────────────
   if (currentUser?.role === 'operator') {
     return (
       <>
@@ -226,34 +292,31 @@ function AppInner() {
     )
   }
 
-  // ── EMPLOYEE VIEW ─────────────────────────────────────────────────────────────
   if (currentUser?.role === 'employee') {
     return (
       <>
         <div className="employee-shell">
-          <div className="employee-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,var(--accent),var(--accent-2))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Zap size={16} color="#fff" />
-              </div>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>TicketFlow</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Hi, {currentUser.name}</span>
-              <button className="menu-trigger" onClick={toggleTheme} title="Toggle theme">
-                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          <header className="employee-header">
+            <TicketFlowLogo subtitle="Employee support" />
+            <div className="employee-header-actions">
+              <span className="user-presence">Hi, {currentUser.name}</span>
+              <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
               </button>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowReports(true)}>
-                <FileText size={13} />Reports
+                <FileText size={14} /> Reports
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={handleSignOut} title="Sign out">
-                <LogOut size={14} />
+              <button className="icon-btn" onClick={handleSignOut} title="Sign out">
+                <LogOut size={16} />
               </button>
             </div>
-          </div>
+          </header>
           <EmployeeTickets
-            API={API} addToast={addToast} currentUser={currentUser}
-            refreshKey={refreshKey} onCreateTicket={() => setShowCreateTicket(true)}
+            API={API}
+            addToast={addToast}
+            currentUser={currentUser}
+            refreshKey={refreshKey}
+            onCreateTicket={() => setShowCreateTicket(true)}
           />
         </div>
 
@@ -261,9 +324,14 @@ function AppInner() {
 
         {showCreateTicket && (
           <CreateTicketModal
-            API={API} currentUser={currentUser}
+            API={API}
+            currentUser={currentUser}
             onClose={() => setShowCreateTicket(false)}
-            onSuccess={(msg) => { addToast(msg, 'success'); setShowCreateTicket(false); refresh() }}
+            onSuccess={(msg) => {
+              addToast(msg, 'success')
+              setShowCreateTicket(false)
+              refresh()
+            }}
             onError={(msg) => addToast(msg, 'error')}
           />
         )}
@@ -275,8 +343,8 @@ function AppInner() {
     )
   }
 
-  // ── MANAGER / SUPER ADMIN ─────────────────────────────────────────────────────
-  const navItems = currentUser?.role === 'super_admin' ? SUPER_ADMIN_NAV : MANAGER_NAV
+  const navGroups = NAV_GROUPS[currentUser?.role] || NAV_GROUPS.manager
+  const navItems = flattenNav(navGroups)
   const pageTitle = navItems.find(n => n.id === page)?.label || 'Dashboard'
 
   const renderPage = () => {
@@ -284,7 +352,8 @@ function AppInner() {
       case 'super_dashboard':
         return (
           <SuperAdminDashboard
-            API={API} addToast={addToast}
+            API={API}
+            addToast={addToast}
             onSelectManager={(id, name) => {
               setImpersonatingManagerId(id)
               setImpersonatingManagerName(name)
@@ -318,62 +387,60 @@ function AppInner() {
   }
 
   return (
-    <div className="app-shell">
-      {/* Sidebar backdrop */}
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <button
         className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`}
         onClick={() => setSidebarOpen(false)}
-        aria-label="Close sidebar"
+        aria-label="Close navigation"
       />
 
-      {/* Sidebar */}
-      <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Primary navigation">
         <div className="sidebar-logo">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="logo-mark"><Zap size={18} color="#fff" fill="#fff" /></div>
-            <div className="logo-text">
-              <div className="logo-name">TicketFlow</div>
-              <div className="logo-sub">Support Desk</div>
-            </div>
-          </div>
-          <button className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setSidebarOpen(false)}>
-            <X size={14} />
+          <TicketFlowLogo compact={sidebarCollapsed} subtitle={currentUser?.role === 'super_admin' ? 'System control' : 'Operations'} />
+          <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(false)} aria-label="Close navigation">
+            <X size={16} />
           </button>
         </div>
 
         <div className="sidebar-nav">
-          {navItems.map(item => {
-            const Icon = item.icon
-            return (
-              <button
-                key={item.id}
-                className={`nav-item ${page === item.id ? 'active' : ''}`}
-                onClick={() => { setPage(item.id); setSidebarOpen(false) }}
-              >
-                <Icon size={16} />
-                {item.label}
-                {item.id === 'tickets' && slaBreached > 0 && (
-                  <span style={{ marginLeft: 'auto', background: 'var(--red)', color: '#fff', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 6px' }}>
-                    {slaBreached}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+          {navGroups.map(group => (
+            <div className="nav-group" key={group.label}>
+              {!sidebarCollapsed && <div className="nav-group-label">{group.label}</div>}
+              {group.items.map(item => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={item.id}
+                    className={`nav-item ${page === item.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setPage(item.id)
+                      setSidebarOpen(false)
+                    }}
+                    title={sidebarCollapsed ? item.label : undefined}
+                  >
+                    <Icon size={17} />
+                    {!sidebarCollapsed && <span>{item.label}</span>}
+                    {!sidebarCollapsed && item.id === 'tickets' && slaBreached > 0 && (
+                      <span className="nav-alert">{slaBreached}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
-        {/* Live stats */}
-        {dashStats && (
+        {dashStats && !sidebarCollapsed && (
           <div className="sidebar-stats">
-            <div className="sidebar-stats-title">Live Stats</div>
+            <div className="sidebar-stats-title">Live health</div>
             {[
-              { label: 'Open Tickets', value: dashStats.overview?.open_tickets ?? 0, color: 'var(--blue)' },
-              { label: 'Agents Online', value: dashStats.operators?.available ?? 0, color: 'var(--green)' },
-              { label: 'SLA Compliance', value: `${dashStats.sla?.compliance_rate ?? 0}%`, color: slaCompliance >= 90 ? 'var(--green)' : slaCompliance >= 70 ? 'var(--amber)' : 'var(--red)' },
+              { label: 'Open tickets', value: dashStats.overview?.open_tickets ?? 0, tone: 'info' },
+              { label: 'Agents online', value: dashStats.operators?.available ?? 0, tone: 'success' },
+              { label: 'SLA compliance', value: `${dashStats.sla?.compliance_rate ?? 0}%`, tone: slaCompliance >= 90 ? 'success' : slaCompliance >= 70 ? 'warning' : 'danger' },
             ].map(s => (
               <div key={s.label} className="sidebar-stat-row">
                 <span className="sidebar-stat-label">{s.label}</span>
-                <span className="sidebar-stat-val" style={{ color: s.color }}>{s.value}</span>
+                <span className={`sidebar-stat-val tone-${s.tone}`}>{s.value}</span>
               </div>
             ))}
           </div>
@@ -382,37 +449,35 @@ function AppInner() {
         <div className="sidebar-footer">
           <div className="sidebar-user">
             <div className="sidebar-avatar">{currentUser?.name?.charAt(0) || '?'}</div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {currentUser?.name}
+            {!sidebarCollapsed && (
+              <div className="sidebar-user-copy">
+                <div>{currentUser?.name}</div>
+                <span>{roleLabel(currentUser?.role)}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'capitalize' }}>
-                {currentUser?.role?.replace('_', ' ')}
-              </div>
-            </div>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={toggleTheme}>
-              {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
-              {theme === 'dark' ? 'Light' : 'Dark'}
+          <div className="sidebar-footer-actions">
+            <button className="icon-btn" onClick={() => setSidebarCollapsed(v => !v)} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+              {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={handleSignOut} title="Sign out">
-              <LogOut size={13} />
+            <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button className="icon-btn" onClick={handleSignOut} title="Sign out">
+              <LogOut size={16} />
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Main panel */}
       <div className="main-panel">
-        {/* Impersonation bar */}
         {impersonatingManagerId && (
           <div className="impersonation-bar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-              <Shield size={14} color="var(--accent-2)" />
-              <span style={{ fontWeight: 600 }}>Viewing as:</span>
-              <span>{impersonatingManagerName}</span>
-              <span style={{ color: 'var(--text-3)' }}>— Super Admin override</span>
+            <div>
+              <Shield size={15} />
+              <span>Viewing manager context:</span>
+              <strong>{impersonatingManagerName}</strong>
+              <em>Super admin override</em>
             </div>
             <button
               className="btn btn-secondary btn-xs"
@@ -422,62 +487,54 @@ function AppInner() {
                 setPage('super_dashboard')
               }}
             >
-              <X size={11} />Exit View
+              <X size={12} /> Exit view
             </button>
           </div>
         )}
 
-        {/* Header */}
         <header className="main-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="menu-trigger" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">
+          <div className="header-left">
+            <button className="icon-btn mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <Menu size={18} />
             </button>
             <div className="header-breadcrumb">
-              <span className="header-brand">TicketFlow</span>
-              <span style={{ color: 'var(--border-strong)', fontSize: 12 }}>/</span>
-              <span className="header-page">{pageTitle}</span>
+              <span>TicketFlow</span>
+              <span>/</span>
+              <strong>{pageTitle}</strong>
             </div>
           </div>
 
           <div className="header-actions">
             {slaBreached > 0 && (
               <div className="notif-chip red">
-                <AlertTriangle size={11} />{slaBreached} SLA breach{slaBreached > 1 ? 'es' : ''}
+                <AlertTriangle size={12} /> {slaBreached} SLA breach{slaBreached > 1 ? 'es' : ''}
               </div>
             )}
             {criticalCount > 0 && (
               <div className="notif-chip amber">
-                <AlertTriangle size={11} />{criticalCount} critical
+                <AlertTriangle size={12} /> {criticalCount} critical
               </div>
             )}
             {slaCompliance !== null && (
               <div className="sla-indicator" title={`SLA compliance: ${slaCompliance}%`}>
-                <div className="sla-dot" style={{
-                  background: slaCompliance >= 90 ? 'var(--green)' : slaCompliance >= 70 ? 'var(--amber)' : 'var(--red)'
-                }} />
-                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{slaCompliance}% SLA</span>
+                <span className={`sla-dot ${slaCompliance >= 90 ? 'ok' : slaCompliance >= 70 ? 'warning' : 'danger'}`} />
+                <span>{slaCompliance}% SLA</span>
               </div>
             )}
             {agentsAvailable > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-                {agentsAvailable} online
-              </span>
+              <div className="presence-chip">
+                <span /> {agentsAvailable} online
+              </div>
             )}
             <button className="btn btn-secondary btn-sm" onClick={() => setShowReports(true)}>
-              <FileText size={13} />Reports
+              <FileText size={14} /> Reports
             </button>
-            <button className="menu-trigger" onClick={toggleTheme} title="Toggle theme">
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-            <button className="menu-trigger" onClick={fetchStats} title="Refresh stats">
-              <RefreshCw size={15} />
+            <button className="icon-btn" onClick={fetchStats} title="Refresh stats">
+              <RefreshCw size={16} />
             </button>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="page-content">
           <div className="page-content-inner">
             {renderPage()}

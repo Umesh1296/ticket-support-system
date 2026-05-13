@@ -86,7 +86,7 @@ export default function CustomerSupportWidget({ currentUser, API, addToast }) {
             <div className="csw-ticket-select">
               <select className="select" style={{ fontSize: 12 }} value={selectedId} onChange={e => setSelectedId(e.target.value)}>
                 {tickets.map(t => (
-                  <option key={t.id} value={t.id}>{t.display_id} — {t.title.slice(0, 40)}</option>
+                  <option key={t.id} value={t.id}>{t.display_id} - {t.title.slice(0, 40)}</option>
                 ))}
               </select>
             </div>
@@ -110,7 +110,7 @@ export default function CustomerSupportWidget({ currentUser, API, addToast }) {
 
           <div className="csw-input-area">
             <input
-              placeholder={selectedId ? 'Type a message…' : 'Select a ticket first'}
+              placeholder={selectedId ? 'Type a message...' : 'Select a ticket first'}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}

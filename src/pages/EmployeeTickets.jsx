@@ -64,7 +64,7 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
       </div>
       {t.feedback && (
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--amber)' }}>
-          ★ You rated this {t.feedback.rating}/5
+          Rated {t.feedback.rating}/5
         </div>
       )}
     </div>
@@ -74,9 +74,9 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em' }}>My Tickets</div>
+          <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 0 }}>My Tickets</div>
           <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 3 }}>
-            Hi {currentUser?.name?.split(' ')[0] || 'there'} — {open.length} open, {closed.length} resolved
+            Hi {currentUser?.name?.split(' ')[0] || 'there'} - {open.length} open, {closed.length} resolved
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -98,7 +98,7 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
         <>
           {open.length > 0 && (
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-3)', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0, color: 'var(--text-3)', marginBottom: 12 }}>
                 Active ({open.length})
               </div>
               {open.map(t => <TicketCard key={t.id} t={t} />)}
@@ -106,7 +106,7 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
           )}
           {closed.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-3)', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0, color: 'var(--text-3)', marginBottom: 12 }}>
                 Resolved ({closed.length})
               </div>
               {closed.map(t => <TicketCard key={t.id} t={t} />)}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 232 64" role="img" aria-label="TicketFlow logo">
+  <defs>
+    <linearGradient id="logoGradientLight" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A78BFA"/>
+      <stop offset=".46" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="16" fill="#18181B"/>
+  <path d="M18 22.5c0-3 2.4-5.5 5.5-5.5h24c3 0 5.5 2.4 5.5 5.5v5.2c-3.4 0-6.1 2.7-6.1 6.1 0 3.4 2.7 6.1 6.1 6.1v1.6c0 3-2.4 5.5-5.5 5.5h-24c-3 0-5.5-2.4-5.5-5.5v-1.6c3.4 0 6.1-2.7 6.1-6.1 0-3.4-2.7-6.1-6.1-6.1v-5.2Z" fill="url(#logoGradientLight)"/>
+  <path d="M32 21h4l-3 9h7L28.8 44l3.1-10H25l7-13Z" fill="white"/>
+  <text x="80" y="39" fill="#18181B" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="760" letter-spacing="0">TicketFlow</text>
+</svg>

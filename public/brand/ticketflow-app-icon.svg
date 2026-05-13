@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TicketFlow app icon">
+  <defs>
+    <linearGradient id="appIconGradient" x1="72" y1="56" x2="440" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C4B5FD"/>
+      <stop offset=".46" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#09090B"/>
+  <path d="M140 180c0-24 20-44 44-44h184c24 0 44 20 44 44v44c-28 0-50 22-50 50s22 50 50 50v8c0 24-20 44-44 44H184c-24 0-44-20-44-44v-8c28 0 50-22 50-50s-22-50-50-50v-44Z" fill="url(#appIconGradient)"/>
+  <path d="M254 168h42l-34 82h70L228 362l32-82h-72l66-112Z" fill="white"/>
+</svg>

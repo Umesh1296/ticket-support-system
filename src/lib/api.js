@@ -11,7 +11,7 @@ let unauthorizedHandler = null
 
 function isPublicAuthRequest(config) {
   const url = config?.url || ''
-  return url.includes('/auth/firebase-login') || url.includes('/auth/config')
+  return url.includes('/auth/firebase-login') || url.includes('/auth/local-login') || url.includes('/auth/config')
 }
 
 API.interceptors.request.use(async (config) => {
@@ -98,7 +98,7 @@ export function storeAuthToken(token) {
 }
 
 /**
- * createAPI — returns an axios instance bound to a specific auth token
+ * createAPI returns an axios instance bound to a specific auth token
  * and optionally scoped to a manager (for Super Admin impersonation).
  */
 export function createAPI(token, managerId = null) {
