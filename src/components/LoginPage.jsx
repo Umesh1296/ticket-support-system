@@ -1,45 +1,10 @@
 import { useState } from 'react'
-import { Crown, Eye, EyeOff, Headset, Shield, User, Zap } from 'lucide-react'
+import { Eye, EyeOff, Zap } from 'lucide-react'
 import { firebaseEmailLogin, firebaseGoogleLogin, firebaseSendPasswordReset } from '../lib/firebase.js'
 import { getFriendlyErrorMessage } from '../lib/api.js'
 
-const ROLES = [
-  {
-    id: 'super_admin',
-    label: 'Super Admin',
-    desc: 'System-wide control',
-    icon: Crown,
-    gradient: 'linear-gradient(135deg,#f59e0b,#d97706)',
-    color: '#f59e0b',
-  },
-  {
-    id: 'manager',
-    label: 'Admin / Manager',
-    desc: 'Team & ticket management',
-    icon: Shield,
-    gradient: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-    color: '#4f46e5',
-  },
-  {
-    id: 'employee',
-    label: 'End User',
-    desc: 'Submit & track tickets',
-    icon: User,
-    gradient: 'linear-gradient(135deg,#10b981,#059669)',
-    color: '#10b981',
-  },
-  {
-    id: 'operator',
-    label: 'Support Agent',
-    desc: 'Handle & resolve tickets',
-    icon: Headset,
-    gradient: 'linear-gradient(135deg,#3b82f6,#2563eb)',
-    color: '#3b82f6',
-  },
-]
 
 export default function LoginPage({ API, addToast, onFirebaseLogin }) {
-  const [selectedRole, setSelectedRole] = useState('manager')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -49,8 +14,8 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
 
-  const doServerLogin = async (idToken, role) => {
-    const { data } = await API.post('/auth/firebase-login', { idToken, role })
+  const doServerLogin = async (idToken) => {
+    const { data } = await API.post('/auth/firebase-login', { idToken })
     if (!data.success) throw new Error(data.error || 'Login failed')
     localStorage.setItem('ticketflow_user_role', data.data.user.role)
     await onFirebaseLogin(data.data)
@@ -63,11 +28,11 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
     try {
       const fbUser = await firebaseEmailLogin(email, password)
       const idToken = await fbUser.getIdToken()
-      await doServerLogin(idToken, selectedRole)
+      await doServerLogin(idToken)
     } catch (fbErr) {
       // Firebase failed — try local fallback
       try {
-        const { data } = await API.post('/auth/local-login', { email, password, role: selectedRole })
+        const { data } = await API.post('/auth/local-login', { email, password })
         if (!data.success) throw new Error(data.error)
         localStorage.setItem('ticketflow_user_role', data.data.user.role)
         await onFirebaseLogin(data.data)
@@ -84,7 +49,7 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
     try {
       const fbUser = await firebaseGoogleLogin()
       const idToken = await fbUser.getIdToken()
-      await doServerLogin(idToken, selectedRole)
+      await doServerLogin(idToken)
     } catch (err) {
       addToast(getFriendlyErrorMessage(err, 'Google sign-in failed'), 'error')
     } finally {
@@ -135,57 +100,20 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
     )
   }
 
-  const role = ROLES.find(r => r.id === selectedRole)
-
   return (
     <div className="auth-shell">
       <div className="auth-wrap">
         <div className="auth-brand">
           <div className="auth-logo-mark"><Zap size={24} color="#fff" fill="#fff" /></div>
-          <div className="auth-title">TicketFlow</div>
-          <div className="auth-subtitle">Internal IT Support Desk — Sign in to continue</div>
-        </div>
-
-        {/* Role Selector */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-            Select Your Role
-          </div>
-          <div className="role-grid">
-            {ROLES.map(r => {
-              const Icon = r.icon
-              return (
-                <button
-                  key={r.id}
-                  className={`role-card ${selectedRole === r.id ? 'active' : ''}`}
-                  onClick={() => setSelectedRole(r.id)}
-                  type="button"
-                >
-                  <div className="role-icon" style={{ background: r.gradient }}>
-                    <Icon size={17} color="#fff" />
-                  </div>
-                  <div>
-                    <div className="role-name">{r.label}</div>
-                    <div className="role-desc">{r.desc}</div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          <div className="auth-title">Sign in to TicketFlow</div>
+          <div className="auth-subtitle">Your workspace and role are resolved automatically.</div>
         </div>
 
         {/* Auth Form */}
         <div className="auth-card">
-          <div className="auth-form-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="role-icon" style={{ background: role.gradient, width: 28, height: 28 }}>
-              {(() => { const Icon = role.icon; return <Icon size={13} color="#fff" /> })()}
-            </div>
-            Sign in as {role.label}
-          </div>
-
           <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="form-group">
-              <label className="form-label">Email Address</label>
+              <label className="form-label">Email address</label>
               <input className="input" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
             </div>
             <div className="form-group">
@@ -197,13 +125,14 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
                 </button>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Provisioned accounts only</span>
               <button type="button" className="auth-link" style={{ fontSize: 12 }} onClick={() => setForgotMode(true)}>
                 Forgot password?
               </button>
             </div>
             <button className="btn btn-primary" type="submit" disabled={loading} style={{ justifyContent: 'center', padding: '10px' }}>
-              {loading ? <><span className="spinner spinner-sm" />Signing in...</> : 'Sign In'}
+              {loading ? <><span className="spinner spinner-sm" />Signing in...</> : 'Continue'}
             </button>
           </form>
 
@@ -223,7 +152,7 @@ export default function LoginPage({ API, addToast, onFirebaseLogin }) {
           </>
 
           <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--r-md)', fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--text-2)' }}>Note:</strong> Accounts are provisioned by administrators. Google sign-in works for existing accounts in the selected role.
+            <strong style={{ color: 'var(--text-2)' }}>Note:</strong> Accounts are provisioned by administrators. Your role is detected automatically from your credentials.
           </div>
         </div>
       </div>

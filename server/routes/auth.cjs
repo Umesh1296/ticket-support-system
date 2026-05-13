@@ -64,6 +64,24 @@ async function ensureSuperAdminAccount(store, { email, name = 'Super Admin', fir
   return superAdmin
 }
 
+/**
+ * Helper: find a user across all role collections and return { user, role }.
+ */
+async function findUserAcrossRoles(store, email) {
+  const [superAdmin, manager, operator, employee] = await Promise.all([
+    store.findSuperAdminByEmail(email),
+    store.findManagerByEmail(email),
+    store.findOperatorByEmail(email),
+    store.findEmployeeByEmail(email),
+  ])
+
+  if (superAdmin) return { user: superAdmin, role: ROLES.super_admin }
+  if (manager) return { user: manager, role: ROLES.manager }
+  if (operator) return { user: operator, role: ROLES.operator }
+  if (employee) return { user: employee, role: ROLES.employee }
+  return null
+}
+
 module.exports = (store) => {
   const router = express.Router()
 
@@ -77,14 +95,13 @@ module.exports = (store) => {
   })
 
   /**
-   * Firebase Login — verify Firebase ID token, look up role in MongoDB, return profile.
-   * If the user doesn't exist in MongoDB yet, auto-register them.
+   * Firebase Login — verify Firebase ID token, auto-detect role from MongoDB.
+   * Role parameter is no longer required — the system finds the user automatically.
    */
   router.post('/firebase-login', async (req, res) => {
     try {
-      const { idToken, role } = req.body
+      const { idToken } = req.body
       if (!idToken) return res.status(400).json({ success: false, error: 'Firebase ID token is required' })
-      if (!role || !isValidRole(role)) return res.status(400).json({ success: false, error: 'Valid role is required' })
 
       // Verify the Firebase token
       const decoded = await verifyFirebaseToken(idToken)
@@ -94,12 +111,8 @@ module.exports = (store) => {
 
       const email = decoded.email.toLowerCase()
 
-      // Super Admin check — only the configured email can be super_admin
-      if (role === ROLES.super_admin) {
-        if (!SUPER_ADMIN_EMAIL || email !== SUPER_ADMIN_EMAIL) {
-          return res.status(403).json({ success: false, error: 'You are not authorized as Super Admin' })
-        }
-
+      // Super Admin check — if this email matches the configured super admin
+      if (SUPER_ADMIN_EMAIL && email === SUPER_ADMIN_EMAIL) {
         const superAdmin = await ensureSuperAdminAccount(store, {
           email,
           name: decoded.name || 'Super Admin',
@@ -110,18 +123,17 @@ module.exports = (store) => {
         const token = createAuthToken(superAdmin)
         return res.json({
           success: true,
-          data: { token, user: sanitizeUser(superAdmin) },
+          data: { token, user: sanitizeUser(superAdmin, ROLES.super_admin) },
           message: 'Super Admin login successful',
         })
       }
 
-      // Check if user already exists in the target role
-      let user = null
-      if (role === ROLES.manager) user = await store.findManagerByEmail(email)
-      else if (role === ROLES.operator) user = await store.findOperatorByEmail(email)
-      else if (role === ROLES.employee) user = await store.findEmployeeByEmail(email)
+      // Auto-detect role by searching across all collections
+      const found = await findUserAcrossRoles(store, email)
 
-      if (user) {
+      if (found) {
+        let { user, role } = found
+
         // Update firebase_uid if missing
         if (!user.firebase_uid) {
           const methods = require('../auth.cjs').getRoleMethods(store, role)
@@ -137,33 +149,11 @@ module.exports = (store) => {
         })
       }
 
-      // ---- User doesn't exist in this role — auto-register for employee, restrict others ----
-
-      // Employees — disabled self-registration
-      if (role === ROLES.employee) {
-        return res.status(403).json({
-          success: false,
-          error: 'End User accounts are created by an Admin. Contact your administrator.',
-        })
-      }
-
-      // Managers — only Super Admin can create them
-      if (role === ROLES.manager) {
-        return res.status(403).json({
-          success: false,
-          error: 'Admin accounts are created by the Super Admin only. Contact your system administrator.',
-        })
-      }
-
-      // Operators — only Manager/Super Admin can create them
-      if (role === ROLES.operator) {
-        return res.status(403).json({
-          success: false,
-          error: 'Support Agent accounts are created by an Admin. Contact your administrator.',
-        })
-      }
-
-      return res.status(400).json({ success: false, error: 'Unable to login' })
+      // User not found in any collection
+      return res.status(403).json({
+        success: false,
+        error: 'No account found for this email. Accounts are provisioned by administrators.',
+      })
     } catch (err) {
       console.error('[Auth] Firebase login error:', err.message)
       res.status(500).json({ success: false, error: err.message })
@@ -171,22 +161,20 @@ module.exports = (store) => {
   })
 
   /**
-   * Local Login Fallback — Check credentials directly against DB if Firebase Auth fails
+   * Local Login — auto-detect role, verify password against the matched account.
+   * Role parameter is no longer required.
    */
   router.post('/local-login', async (req, res) => {
     try {
-      const { email, password, role } = req.body
-      if (!email || !password || !role) {
-        return res.status(400).json({ success: false, error: 'Email, password, and role are required' })
+      const { email, password } = req.body
+      if (!email || !password) {
+        return res.status(400).json({ success: false, error: 'Email and password are required' })
       }
 
       const normalizedEmail = email.toLowerCase()
 
-      if (role === ROLES.super_admin) {
-        if (!SUPER_ADMIN_EMAIL || normalizedEmail !== SUPER_ADMIN_EMAIL) {
-          return res.status(401).json({ success: false, error: 'Invalid email or password' })
-        }
-
+      // Super Admin check first
+      if (SUPER_ADMIN_EMAIL && normalizedEmail === SUPER_ADMIN_EMAIL) {
         if (!SUPER_ADMIN_PASSWORD) {
           return res.status(403).json({
             success: false,
@@ -207,19 +195,19 @@ module.exports = (store) => {
         const token = createAuthToken(superAdmin)
         return res.json({
           success: true,
-          data: { token, user: sanitizeUser(superAdmin, role) },
-          message: 'Super Admin login successful via local password',
+          data: { token, user: sanitizeUser(superAdmin, ROLES.super_admin) },
+          message: 'Super Admin login successful',
         })
       }
 
-      let user = null
-      if (role === ROLES.manager) user = await store.findManagerByEmail(normalizedEmail)
-      else if (role === ROLES.operator) user = await store.findOperatorByEmail(normalizedEmail)
-      else if (role === ROLES.employee) user = await store.findEmployeeByEmail(normalizedEmail)
+      // Auto-detect role by searching across all collections
+      const found = await findUserAcrossRoles(store, normalizedEmail)
 
-      if (!user) {
+      if (!found) {
         return res.status(401).json({ success: false, error: 'Invalid email or password' })
       }
+
+      const { user, role } = found
 
       if (!verifyPassword(password, user.password_hash)) {
         return res.status(401).json({ success: false, error: 'Invalid email or password' })
@@ -229,7 +217,7 @@ module.exports = (store) => {
       return res.json({
         success: true,
         data: { token, user: sanitizeUser(user, role) },
-        message: 'Login successful via local fallback',
+        message: 'Login successful',
       })
     } catch (err) {
       console.error('[Auth] Local login error:', err.message)
@@ -245,22 +233,14 @@ module.exports = (store) => {
       const email = req.user.email
       if (!email) return res.status(401).json({ success: false, error: 'No email found' })
 
-      // Look up across all roles
-      const [superAdmin, manager, operator, employee] = await Promise.all([
-        store.findSuperAdminByEmail(email),
-        store.findManagerByEmail(email),
-        store.findOperatorByEmail(email),
-        store.findEmployeeByEmail(email),
-      ])
-
-      const found = superAdmin || manager || operator || employee
+      const found = await findUserAcrossRoles(store, email)
       if (!found) {
         return res.status(401).json({ success: false, error: 'Account not found. Please register first.' })
       }
 
       res.json({
         success: true,
-        data: { user: sanitizeUser(found) },
+        data: { user: sanitizeUser(found.user, found.role) },
       })
     } catch (err) {
       res.status(500).json({ success: false, error: err.message })
