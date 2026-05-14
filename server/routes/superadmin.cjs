@@ -185,16 +185,22 @@ module.exports = (store) => {
         return res.status(400).json({ success: false, error: 'Password must be at least 8 characters' })
       }
 
-      if (manager.firebase_uid) {
+      let firebaseUid = manager.firebase_uid
+      if (firebaseUid) {
         const admin = require('firebase-admin')
-        await admin.auth().updateUser(manager.firebase_uid, { password: newPassword }).catch(err => {
+        await admin.auth().updateUser(firebaseUid, { password: newPassword }).catch(err => {
           console.warn('[SuperAdmin] Failed to update Firebase password on reset:', err.message)
         })
+      } else {
+        const fbUser = await createFirebaseAuthUser(manager.email, newPassword, manager.name)
+        firebaseUid = fbUser.uid
       }
 
       await store.updateManager(manager.id, {
         password_hash: hashPassword(newPassword),
         last_set_password: newPassword,
+        provider: 'firebase',
+        firebase_uid: firebaseUid,
       })
 
       res.json({

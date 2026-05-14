@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   AlertCircle, BookOpen, Bot, CheckCircle, ChevronDown, CircleDot,
-  Coffee, Headset, MessageSquare, Moon, Send, Shield, Ticket, User, X, Zap
+  Coffee, Headset, MessageSquare, Moon, Send, Settings, Shield, Ticket, User, X, Zap
 } from 'lucide-react'
 import WorkLogModal from '../components/WorkLogModal.jsx'
 import SLACountdown from '../components/SLACountdown.jsx'
+import AccountPasswordPanel from '../components/AccountPasswordPanel.jsx'
 import { TicketFlowLogo } from '../components/Brand.jsx'
 import { getFriendlyErrorMessage } from '../lib/api.js'
 import { formatCategoryLabel } from '../lib/taxonomy.js'
@@ -35,6 +36,7 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
   const [workLogLoading, setWorkLogLoading] = useState(false)
   const [newTicketIds, setNewTicketIds] = useState(new Set())
   const [transferModal, setTransferModal] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [queueSearch, setQueueSearch] = useState('')
   const pollRef = useRef(null)
   const msgPollRef = useRef(null)
@@ -247,6 +249,9 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
           )}
 
           <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Account settings">
+            <Settings size={15} />
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', background: 'var(--bg-secondary)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
             <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, color: 'var(--accent-2)' }}>
               {currentUser?.name?.charAt(0)}
@@ -561,6 +566,20 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
           onSubmit={handleWorkLogSubmit}
           loading={workLogLoading}
         />
+      )}
+
+      {showSettings && (
+        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="modal" style={{ maxWidth: 620 }} onClick={event => event.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Account Settings</div>
+              <button className="close-btn" onClick={() => setShowSettings(false)}><X size={14} /></button>
+            </div>
+            <div className="modal-body">
+              <AccountPasswordPanel API={API} addToast={addToast} compact />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

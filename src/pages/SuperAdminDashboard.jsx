@@ -91,7 +91,9 @@ export default function SuperAdminDashboard({ API, addToast, onSelectManager }) 
     setResettingId(mgr.id)
     try {
       const { data } = await API.post(`/superadmin/managers/${mgr.id}/reset-password`)
-      addToast(`Password: ${data.data?.credentials?.password}`, 'success')
+      const password = data.data?.credentials?.password
+      addToast(password ? `Password reset: ${password}` : 'Password reset, but no password was returned', password ? 'success' : 'info')
+      fetchData()
     } catch (err) { addToast(getFriendlyErrorMessage(err, 'Reset failed'), 'error') }
     finally { setResettingId(null) }
   }
@@ -161,6 +163,9 @@ export default function SuperAdminDashboard({ API, addToast, onSelectManager }) 
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mgr.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mgr.email}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 3, fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Password: {mgr.last_set_password || 'reset to generate'}
+                  </div>
                 </div>
               </div>
 

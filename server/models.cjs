@@ -6,7 +6,10 @@ const ManagerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password_hash: { type: String },
+  last_set_password: { type: String },
   role: { type: String, default: 'manager' },
+  firebase_uid: { type: String },
+  provider: { type: String, default: 'firebase' },
   googleId: { type: String },
   avatarUrl: { type: String }
 }, { timestamps: true, id: false })
@@ -20,6 +23,8 @@ const EmployeeSchema = new mongoose.Schema({
   password_hash: { type: String },
   last_set_password: { type: String },
   role: { type: String, default: 'employee' },
+  firebase_uid: { type: String },
+  provider: { type: String, default: 'firebase' },
   googleId: { type: String },
   avatarUrl: { type: String }
 }, { timestamps: true, id: false })
@@ -33,6 +38,8 @@ const OperatorSchema = new mongoose.Schema({
   password_hash: { type: String },
   last_set_password: { type: String },
   role: { type: String, default: 'operator' },
+  firebase_uid: { type: String },
+  provider: { type: String, default: 'firebase' },
   skills: [{ type: String }],
   status: { type: String, default: 'offline' }, // 'available', 'offline'
   current_load: { type: Number, default: 0 },

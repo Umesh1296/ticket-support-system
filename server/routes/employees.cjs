@@ -103,6 +103,8 @@ module.exports = (store) => {
       const finalPassword = !String(password || '').trim() && employee.display_id ? `Enduser@${employee.display_id}` : resolvedPassword
       // Re-hash with the ID-based password if we used the default
       if (!String(password || '').trim() && employee.display_id) {
+        const admin = require('firebase-admin')
+        await admin.auth().updateUser(fbUser.uid, { password: finalPassword }).catch(() => {})
         await store.updateEmployee(employee.id, { password_hash: hashPassword(finalPassword), last_set_password: finalPassword })
       } else {
         await store.updateEmployee(employee.id, { last_set_password: finalPassword })

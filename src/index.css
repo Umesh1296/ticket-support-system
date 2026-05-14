@@ -1429,6 +1429,19 @@ strong {
   background: var(--bg);
 }
 
+.employee-dashboard-shell {
+  min-height: calc(100vh - 66px);
+  display: flex;
+}
+
+.employee-sidebar {
+  width: 280px;
+  flex: 0 0 280px;
+  padding: 22px 12px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+}
+
 .employee-header {
   z-index: 200;
 }
@@ -3203,6 +3216,17 @@ tbody tr:hover td {
 
   .page-content {
     padding: 16px;
+  }
+
+  .employee-dashboard-shell {
+    flex-direction: column;
+  }
+
+  .employee-sidebar {
+    width: auto;
+    flex: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
   .dashboard-grid {

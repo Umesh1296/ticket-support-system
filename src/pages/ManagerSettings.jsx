@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Settings, Shield, Sliders } from 'lucide-react'
+import AccountPasswordPanel from '../components/AccountPasswordPanel.jsx'
 import { getFriendlyErrorMessage } from '../lib/api.js'
 
 export default function ManagerSettings({ API, addToast, user, onAccountDeleted }) {
@@ -63,6 +64,8 @@ export default function ManagerSettings({ API, addToast, user, onAccountDeleted 
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {user?.role !== 'super_admin' && <AccountPasswordPanel API={API} addToast={addToast} />}
+
         {/* SLA Rules */}
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>

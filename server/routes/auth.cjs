@@ -12,7 +12,7 @@ const {
   sanitizeUser,
   verifyPassword,
 } = require('../auth.cjs')
-const { verifyFirebaseToken } = require('../firebase.cjs')
+const { createFirebaseAuthUser, verifyFirebaseToken } = require('../firebase.cjs')
 
 function timingSafeTextEqual(left, right) {
   if (typeof left !== 'string' || typeof right !== 'string') return false
@@ -194,6 +194,56 @@ module.exports = (store) => {
     } catch (err) {
       console.error('[Auth] Local login error:', err.message)
       res.status(500).json({ success: false, error: 'Internal server error during login' })
+    }
+  })
+
+  router.post('/change-password', requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ success: false, error: 'Current password and new password are required' })
+      }
+      if (String(newPassword).length < 8) {
+        return res.status(400).json({ success: false, error: 'New password must be at least 8 characters' })
+      }
+
+      const email = req.user?.email?.toLowerCase()
+      if (!email) {
+        return res.status(401).json({ success: false, error: 'No account email found' })
+      }
+
+      const account = await findProvisionedAccountByEmail(store, email)
+      if (!account) {
+        return res.status(404).json({ success: false, error: 'Account not found' })
+      }
+
+      if (!verifyPassword(currentPassword, account.user.password_hash)) {
+        return res.status(401).json({ success: false, error: 'Current password is incorrect' })
+      }
+
+      let firebaseUid = account.user.firebase_uid
+      if (firebaseUid) {
+        const admin = require('firebase-admin')
+        await admin.auth().updateUser(firebaseUid, { password: newPassword }).catch(err => {
+          console.warn('[Auth] Failed to update Firebase password:', err.message)
+        })
+      } else {
+        const fbUser = await createFirebaseAuthUser(account.user.email, newPassword, account.user.name)
+        firebaseUid = fbUser.uid
+      }
+
+      const methods = getRoleMethods(store, account.role)
+      await methods.update(account.user.id, {
+        password_hash: require('../auth.cjs').hashPassword(newPassword),
+        last_set_password: newPassword,
+        provider: 'firebase',
+        firebase_uid: firebaseUid,
+      })
+
+      res.json({ success: true, message: 'Password changed successfully' })
+    } catch (err) {
+      console.error('[Auth] Change password error:', err.message)
+      res.status(500).json({ success: false, error: 'Could not change password' })
     }
   })
 
