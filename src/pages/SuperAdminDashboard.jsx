@@ -166,7 +166,7 @@ export default function SuperAdminDashboard({ API, addToast, onSelectManager }) 
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Tickets', value: mgr.ticket_count || 0 },
+                  { label: 'Users', value: mgr.employee_count || 0 },
                   { label: 'Agents', value: mgr.operator_count || 0 },
                 ].map(s => (
                   <div key={s.label} style={{ flex: 1, minWidth: 80, padding: '8px', background: 'var(--bg-secondary)', borderRadius: 'var(--r-md)', textAlign: 'center' }}>

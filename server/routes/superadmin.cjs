@@ -49,16 +49,30 @@ module.exports = (store) => {
    */
   router.get('/managers', async (req, res) => {
     try {
-      const managers = await store.getManagers()
-      const tickets = await store.getTickets()
-      const operators = await store.getOperators()
+      const [managers, tickets, operators, employees] = await Promise.all([
+        store.getManagers(),
+        store.getTickets(),
+        store.getOperators(),
+        store.getEmployees(),
+      ])
+
+      const countByManager = (items) => items.reduce((counts, item) => {
+        if (!item.manager_id) return counts
+        counts[item.manager_id] = (counts[item.manager_id] || 0) + 1
+        return counts
+      }, {})
+
+      const ticketCounts = countByManager(tickets)
+      const operatorCounts = countByManager(operators)
+      const employeeCounts = countByManager(employees)
 
       const safeManagers = managers.map(m => {
         const { password_hash, ...safe } = m
         return {
           ...safe,
-          ticket_count: tickets.length, // In single-tenant, all tickets belong to "the" manager
-          operator_count: operators.length,
+          ticket_count: ticketCounts[m.id] || 0,
+          operator_count: operatorCounts[m.id] || 0,
+          employee_count: employeeCounts[m.id] || 0,
         }
       })
 
