@@ -57,10 +57,11 @@ function calculateAssignmentScore(operator, ticket) {
   return { score, reasons }
 }
 
-async function autoAssignTicket(store, ticket) {
+async function autoAssignTicket(store, ticket, options = {}) {
   const allOperators = await store.getOperators({ manager_id: ticket.manager_id })
+  const excludedOperatorIds = new Set(options.excludeOperatorIds || [])
   const operators = allOperators
-    .filter((operator) => operator.status !== 'offline' && (operator.current_load || 0) < operator.max_load)
+    .filter((operator) => !excludedOperatorIds.has(operator.id) && operator.status !== 'offline' && (operator.current_load || 0) < operator.max_load)
     .sort((left, right) => (left.current_load || 0) - (right.current_load || 0))
 
   if (operators.length === 0) {

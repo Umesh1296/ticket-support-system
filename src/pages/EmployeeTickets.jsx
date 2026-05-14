@@ -14,6 +14,9 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
   const [detailTicketId, setDetailTicketId] = useState('')
   const [ticketDetail, setTicketDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [feedbackRating, setFeedbackRating] = useState(0)
+  const [feedbackComment, setFeedbackComment] = useState('')
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
 
   const fetchTickets = async () => {
     setLoading(true)
@@ -46,6 +49,27 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
       addToast(getFriendlyErrorMessage(err, 'Failed to load ticket details'), 'error')
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  const submitFeedback = async (event) => {
+    event.preventDefault()
+    if (!ticketDetail || !feedbackRating) {
+      addToast('Select a rating before submitting feedback', 'error')
+      return
+    }
+    setFeedbackLoading(true)
+    try {
+      await API.post(`/tickets/${ticketDetail.id}/feedback`, { rating: feedbackRating, comment: feedbackComment })
+      addToast('Feedback submitted. Thank you!', 'success')
+      setFeedbackRating(0)
+      setFeedbackComment('')
+      await loadTicketDetail(ticketDetail.id)
+      await fetchTickets()
+    } catch (err) {
+      addToast(getFriendlyErrorMessage(err, 'Feedback failed'), 'error')
+    } finally {
+      setFeedbackLoading(false)
     }
   }
 
@@ -144,8 +168,43 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
                 {ticketDetail.feedback.comment || 'No comment added.'}
               </div>
             </div>
+          ) : ['resolved', 'closed'].includes(ticketDetail.status) ? (
+            <form onSubmit={submitFeedback} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 700, marginBottom: 8 }}>Your rating</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[1, 2, 3, 4, 5].map(rating => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setFeedbackRating(rating)}
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 'var(--r-md)',
+                        border: `1px solid ${rating <= feedbackRating ? 'var(--amber)' : 'var(--border)'}`,
+                        background: rating <= feedbackRating ? 'var(--amber-dim)' : 'var(--bg-secondary)',
+                        color: rating <= feedbackRating ? 'var(--amber)' : 'var(--text-3)',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {rating}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="form-group">
+                <span className="form-label">Comment</span>
+                <textarea className="textarea" rows={3} value={feedbackComment} onChange={event => setFeedbackComment(event.target.value)} placeholder="Share your experience with this resolution..." />
+              </label>
+              <button className="btn btn-primary btn-sm" type="submit" disabled={feedbackLoading || !feedbackRating}>
+                {feedbackLoading ? <span className="spinner spinner-sm" /> : null}
+                Submit feedback
+              </button>
+            </form>
           ) : (
-            <div style={{ color: 'var(--text-3)', fontSize: 13 }}>No feedback has been submitted for this ticket yet.</div>
+            <div style={{ color: 'var(--text-3)', fontSize: 13 }}>Feedback can be submitted after this ticket is resolved.</div>
           )}
         </div>
       )

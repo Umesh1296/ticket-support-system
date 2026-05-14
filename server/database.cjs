@@ -8,6 +8,7 @@ const {
   Ticket,
   AssignmentLog,
   Report,
+  TransferRequest,
   SlaRule,
   Counter,
   SuperAdmin,
@@ -69,6 +70,7 @@ function initializeDatabase() {
     async getTickets(query = {}) { return Ticket.find(query).lean() },
     async getAssignmentLogs(query = {}) { return AssignmentLog.find(query).lean() },
     async getReports(query = {}) { return Report.find(query).lean() },
+    async getTransferRequests(query = {}) { return TransferRequest.find(query).lean() },
     async getSlaRules() { return SlaRule.find().lean() },
 
     async findManagerById(id) { return Manager.findOne({ id }).lean() },
@@ -122,6 +124,11 @@ function initializeDatabase() {
       await doc.save()
       return doc.toObject()
     },
+    async insertTransferRequest(request) {
+      const doc = new TransferRequest(request)
+      await doc.save()
+      return doc.toObject()
+    },
 
     async updateManager(id, updates) { return Manager.findOneAndUpdate({ id }, updates, { new: true }).lean() },
     async deleteManager(id) { return Manager.findOneAndDelete({ id }).lean() },
@@ -130,6 +137,7 @@ function initializeDatabase() {
     async updateOperator(id, updates) { return Operator.findOneAndUpdate({ id }, updates, { new: true }).lean() },
     async deleteOperator(id) { return Operator.findOneAndDelete({ id }).lean() },
     async updateTicket(id, updates) { return Ticket.findOneAndUpdate({ id }, updates, { new: true }).lean() },
+    async updateTransferRequest(id, updates) { return TransferRequest.findOneAndUpdate({ id }, updates, { new: true }).lean() },
     
     // For local fallback compatibility
     async replaceAll() { throw new Error('replaceAll not supported in MongoDB adapter') },

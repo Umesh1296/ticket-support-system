@@ -99,24 +99,25 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
           <button className="close-btn" onClick={onClose}><X size={14} /></button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 24px', background: 'var(--bg-secondary)' }}>
-          {TABS.map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              style={{
-                padding: '10px 16px', border: 'none', background: 'transparent',
-                fontSize: 13, fontWeight: tab === t ? 700 : 500,
-                color: tab === t ? 'var(--accent-2)' : 'var(--text-3)',
-                borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-                cursor: 'pointer', transition: 'all 0.15s', marginBottom: '-1px',
-              }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        {!isEmployee && (
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 24px', background: 'var(--bg-secondary)' }}>
+            {TABS.map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  padding: '10px 16px', border: 'none', background: 'transparent',
+                  fontSize: 13, fontWeight: tab === t ? 700 : 500,
+                  color: tab === t ? 'var(--accent-2)' : 'var(--text-3)',
+                  borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
+                  cursor: 'pointer', transition: 'all 0.15s', marginBottom: '-1px',
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="modal-body" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
           {loading ? (
@@ -125,7 +126,7 @@ export default function TicketDetailsModal({ ticket, API, addToast, onClose, onU
             </div>
           ) : (
             <>
-              {tab === 'Details' && (
+              {(isEmployee || tab === 'Details') && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {/* Description */}
                   <div>

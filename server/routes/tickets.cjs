@@ -168,6 +168,152 @@ module.exports = (store) => {
     }
   })
 
+  // ===== GET transfer requests for manager approval =====
+  router.get('/transfer-requests', async (req, res) => {
+    try {
+      if (req.user.role !== ROLES.manager && req.user.role !== ROLES.super_admin) {
+        return res.status(403).json({ success: false, error: 'Only admin can view transfer requests' })
+      }
+
+      let query = {}
+      if (req.user.role === ROLES.super_admin && req.query.manager_id) query.manager_id = req.query.manager_id
+      else if (req.user.role === ROLES.manager) query.manager_id = req.user.id
+      if (req.query.status) query.status = req.query.status
+
+      const requests = await store.getTransferRequests(query)
+      requests.sort((left, right) => new Date(right.requested_at) - new Date(left.requested_at))
+      res.json({ success: true, data: requests, count: requests.length })
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
+  // ===== POST operator transfer request =====
+  router.post('/:id/transfer-request', async (req, res) => {
+    try {
+      if (req.user.role !== ROLES.operator) {
+        return res.status(403).json({ success: false, error: 'Only agents can request ticket transfer' })
+      }
+
+      const ticket = await store.findTicketById(req.params.id)
+      if (!ticket || !canAccessTicket(req.user, ticket)) {
+        return res.status(404).json({ success: false, error: 'Ticket not found' })
+      }
+      if (['resolved', 'closed'].includes(ticket.status)) {
+        return res.status(400).json({ success: false, error: 'Resolved tickets cannot be transferred' })
+      }
+
+      const reason = String(req.body?.reason || '').trim()
+      if (!reason) {
+        return res.status(400).json({ success: false, error: 'Transfer reason is required' })
+      }
+
+      const existing = (await store.getTransferRequests({ ticket_id: ticket.id, status: 'pending' }))[0]
+      if (existing) {
+        return res.status(400).json({ success: false, error: 'A transfer request is already pending for this ticket' })
+      }
+
+      const request = await store.insertTransferRequest({
+        id: uuidv4(),
+        manager_id: ticket.manager_id,
+        ticket_id: ticket.id,
+        ticket_title: ticket.title,
+        operator_id: req.user.id,
+        operator_name: req.user.name,
+        operator_email: req.user.email,
+        reason,
+        status: 'pending',
+        requested_at: new Date().toISOString(),
+      })
+
+      res.status(201).json({ success: true, data: request, message: 'Transfer request sent to admin for approval' })
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
+  // ===== POST manager approve/reject transfer request =====
+  router.post('/transfer-requests/:id/:action', async (req, res) => {
+    try {
+      if (req.user.role !== ROLES.manager && req.user.role !== ROLES.super_admin) {
+        return res.status(403).json({ success: false, error: 'Only admin can review transfer requests' })
+      }
+
+      const { id, action } = req.params
+      if (!['approve', 'reject'].includes(action)) {
+        return res.status(400).json({ success: false, error: 'Choose approve or reject' })
+      }
+
+      const request = (await store.getTransferRequests({ id }))[0]
+      if (!request) return res.status(404).json({ success: false, error: 'Transfer request not found' })
+      if (request.status !== 'pending') return res.status(400).json({ success: false, error: 'Transfer request already reviewed' })
+      if (req.user.role === ROLES.manager && request.manager_id !== req.user.id) {
+        return res.status(404).json({ success: false, error: 'Transfer request not found' })
+      }
+
+      if (action === 'reject') {
+        const updated = await store.updateTransferRequest(id, {
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: req.user.id,
+          review_note: String(req.body?.note || '').trim(),
+        })
+        return res.json({ success: true, data: updated, message: 'Transfer request rejected' })
+      }
+
+      const ticket = await store.findTicketById(request.ticket_id)
+      if (!ticket) return res.status(404).json({ success: false, error: 'Ticket not found' })
+
+      if (ticket.assigned_to) {
+        const operator = await store.findOperatorById(ticket.assigned_to)
+        if (operator) {
+          await store.updateOperator(operator.id, {
+            current_load: Math.max(0, (operator.current_load || 0) - 1),
+            status: operator.status === 'busy' && (operator.current_load || 0) <= 1 ? 'available' : operator.status,
+          })
+        }
+      }
+
+      await store.updateTicket(ticket.id, {
+        assigned_to: null,
+        status: 'open',
+        updated_at: new Date().toISOString(),
+      })
+
+      const assignment = await autoAssignTicket(
+        store,
+        { ...ticket, assigned_to: null, status: 'open' },
+        { excludeOperatorIds: [request.operator_id] },
+      )
+      const updatedRequest = await store.updateTransferRequest(id, {
+        status: 'approved',
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: req.user.id,
+        review_note: String(req.body?.note || '').trim(),
+      })
+
+      await new AuditEvent({
+        operator_id: request.operator_id,
+        operator_name: request.operator_name || 'Unknown',
+        operator_email: request.operator_email || 'Unknown',
+        event_type: 'ticket_transferred',
+        ticket_id: ticket.id,
+        ticket_title: ticket.title,
+        details: assignment?.success
+          ? `Transfer approved. Reassigned to ${assignment.operator.name}. Reason: ${request.reason}`
+          : `Transfer approved. Ticket returned to queue. Reason: ${request.reason}`,
+      }).save()
+
+      res.json({
+        success: true,
+        data: { request: updatedRequest, assignment },
+        message: assignment?.success ? `Transfer approved and reassigned to ${assignment.operator.name}` : 'Transfer approved. No matching agent is currently available.',
+      })
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
   // ===== GET single ticket =====
   router.get('/:id', async (req, res) => {
     try {

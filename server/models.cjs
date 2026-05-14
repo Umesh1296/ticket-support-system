@@ -88,6 +88,22 @@ const ReportSchema = new mongoose.Schema({
   sla_status: { type: Object }
 }, { id: false })
 
+const TransferRequestSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  manager_id: { type: String, required: true, index: true },
+  ticket_id: { type: String, required: true, index: true },
+  ticket_title: { type: String, required: true },
+  operator_id: { type: String, required: true, index: true },
+  operator_name: { type: String },
+  operator_email: { type: String },
+  reason: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
+  requested_at: { type: Date, default: Date.now },
+  reviewed_at: { type: Date, default: null },
+  reviewed_by: { type: String, default: null },
+  review_note: { type: String, default: '' },
+}, { id: false })
+
 const SlaRuleSchema = new mongoose.Schema({
   priority: { type: String, required: true, unique: true },
   hours_limit: { type: Number, required: true },
@@ -115,6 +131,7 @@ const Operator = mongoose.model('Operator', OperatorSchema)
 const Ticket = mongoose.model('Ticket', TicketSchema)
 const AssignmentLog = mongoose.model('AssignmentLog', AssignmentLogSchema)
 const Report = mongoose.model('Report', ReportSchema)
+const TransferRequest = mongoose.model('TransferRequest', TransferRequestSchema)
 const SlaRule = mongoose.model('SlaRule', SlaRuleSchema)
 const Counter = mongoose.model('Counter', CounterSchema)
 const SuperAdmin = mongoose.model('SuperAdmin', SuperAdminSchema)
@@ -126,6 +143,7 @@ module.exports = {
   Ticket,
   AssignmentLog,
   Report,
+  TransferRequest,
   SlaRule,
   Counter,
   SuperAdmin,

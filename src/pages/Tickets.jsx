@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Bot,
+  Check,
   Clock3,
+  GitPullRequestArrow,
   MessageSquare,
   Network,
   RefreshCw,
@@ -9,6 +11,7 @@ import {
   Sparkles,
   Ticket,
   UserRound,
+  X,
 } from 'lucide-react'
 import SLACountdown from '../components/SLACountdown.jsx'
 import TicketDetailsModal from '../components/TicketDetailsModal.jsx'
@@ -35,6 +38,8 @@ export default function Tickets({ API, addToast, onRefresh, refreshKey, currentU
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [modalTicket, setModalTicket] = useState(null)
+  const [transferRequests, setTransferRequests] = useState([])
+  const [reviewingRequestId, setReviewingRequestId] = useState(null)
   const [filters, setFilters] = useState({ status: '', priority: '', category: '', search: '' })
 
   const fetchTickets = async () => {
@@ -44,9 +49,14 @@ export default function Tickets({ API, addToast, onRefresh, refreshKey, currentU
       if (filters.status) params.append('status', filters.status)
       if (filters.priority) params.append('priority', filters.priority)
       if (filters.category) params.append('category', filters.category)
-      const { data } = await API.get(`/tickets${params.toString() ? '?' + params : ''}`)
+      const [ticketRes, transferRes] = await Promise.all([
+        API.get(`/tickets${params.toString() ? '?' + params : ''}`),
+        API.get('/tickets/transfer-requests?status=pending').catch(() => ({ data: { data: [] } })),
+      ])
+      const data = ticketRes.data
       const nextTickets = data.data || []
       setTickets(nextTickets)
+      setTransferRequests(transferRes.data.data || [])
       setSelected(current => {
         if (current && nextTickets.some(t => t.id === current.id)) return nextTickets.find(t => t.id === current.id)
         return nextTickets[0] || null
@@ -63,6 +73,20 @@ export default function Tickets({ API, addToast, onRefresh, refreshKey, currentU
   }, [refreshKey, filters.status, filters.priority, filters.category])
 
   const setFilter = (key, value) => setFilters(f => ({ ...f, [key]: value }))
+
+  const reviewTransferRequest = async (request, action) => {
+    setReviewingRequestId(request.id)
+    try {
+      const { data } = await API.post(`/tickets/transfer-requests/${request.id}/${action}`)
+      addToast(data.message || `Transfer request ${action}d`, 'success')
+      await fetchTickets()
+      onRefresh?.()
+    } catch (err) {
+      addToast(getFriendlyErrorMessage(err, 'Could not review transfer request'), 'error')
+    } finally {
+      setReviewingRequestId(null)
+    }
+  }
 
   const filtered = useMemo(() => {
     return tickets
@@ -98,6 +122,39 @@ export default function Tickets({ API, addToast, onRefresh, refreshKey, currentU
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
+
+      {transferRequests.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'rgba(139,92,246,0.28)' }}>
+          <div className="section-header" style={{ marginBottom: 12 }}>
+            <div>
+              <div className="section-title" style={{ fontSize: 15 }}><GitPullRequestArrow size={16} /> Transfer Requests</div>
+              <div className="section-sub">Approve to return the ticket to auto-assignment.</div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {transferRequests.map(request => (
+              <div key={request.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 12, alignItems: 'center', padding: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
+                    <strong>{request.ticket_title}</strong>
+                    <span style={{ color: 'var(--text-3)', fontSize: 12 }}>from {request.operator_name || 'Agent'}</span>
+                  </div>
+                  <div style={{ color: 'var(--text-2)', fontSize: 13 }}>{request.reason}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => reviewTransferRequest(request, 'reject')} disabled={reviewingRequestId === request.id}>
+                    <X size={13} />Reject
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={() => reviewTransferRequest(request, 'approve')} disabled={reviewingRequestId === request.id}>
+                    {reviewingRequestId === request.id ? <span className="spinner spinner-sm" /> : <Check size={13} />}
+                    Approve
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="stat-grid" style={{ marginBottom: 16 }}>
         <div className="stat-card">

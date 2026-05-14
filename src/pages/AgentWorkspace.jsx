@@ -36,6 +36,8 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
   const [workLogLoading, setWorkLogLoading] = useState(false)
   const [newTicketIds, setNewTicketIds] = useState(new Set())
   const [transferModal, setTransferModal] = useState(false)
+  const [transferReason, setTransferReason] = useState('')
+  const [transferLoading, setTransferLoading] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [queueSearch, setQueueSearch] = useState('')
   const pollRef = useRef(null)
@@ -193,12 +195,26 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
   }
 
   const handleTransfer = async () => {
+    setTransferReason('')
+    setTransferModal(true)
+  }
+
+  const submitTransferRequest = async () => {
+    if (!selectedTicket || !transferReason.trim()) {
+      addToast('Enter a reason for transfer', 'error')
+      return
+    }
+    setTransferLoading(true)
     try {
-      await API.post(`/tickets/${selectedTicket.id}/reassign`)
-      addToast('Ticket transferred via auto-assignment', 'success')
-      setTickets(ts => ts.filter(t => t.id !== selectedTicket.id))
-      setSelectedTicket(null)
-    } catch (err) { addToast(getFriendlyErrorMessage(err, 'Transfer failed'), 'error') }
+      const { data } = await API.post(`/tickets/${selectedTicket.id}/transfer-request`, { reason: transferReason.trim() })
+      addToast(data.message || 'Transfer request sent to admin', 'success')
+      setTransferModal(false)
+      setTransferReason('')
+    } catch (err) {
+      addToast(getFriendlyErrorMessage(err, 'Transfer request failed'), 'error')
+    } finally {
+      setTransferLoading(false)
+    }
   }
 
   const filteredTickets = tickets.filter(t =>
@@ -566,6 +582,50 @@ export default function AgentWorkspace({ API, addToast, currentUser, onSignOut }
           onSubmit={handleWorkLogSubmit}
           loading={workLogLoading}
         />
+      )}
+
+      {transferModal && selectedTicket && (
+        <div className="modal-overlay" onClick={() => setTransferModal(false)}>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={event => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Request Ticket Transfer</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 4 }}>
+                  Admin approval is required. If approved, TicketFlow will auto-assign the ticket to another matching agent.
+                </div>
+              </div>
+              <button className="close-btn" onClick={() => setTransferModal(false)}><X size={14} /></button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ padding: 14, borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                <div className="ticket-card-meta" style={{ marginBottom: 8 }}>
+                  <span style={{ fontFamily: 'var(--mono)' }}>{selectedTicket.display_id}</span>
+                  <span className={`badge badge-${selectedTicket.priority}`}>{selectedTicket.priority}</span>
+                </div>
+                <div style={{ fontWeight: 800 }}>{selectedTicket.title}</div>
+                <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 6 }}>{selectedTicket.reporter_name}</div>
+              </div>
+              <label className="form-group">
+                <span className="form-label">Reason for transfer</span>
+                <textarea
+                  className="textarea"
+                  rows={4}
+                  value={transferReason}
+                  onChange={event => setTransferReason(event.target.value)}
+                  placeholder="Example: skill mismatch, availability issue, escalation needed..."
+                  autoFocus
+                />
+              </label>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setTransferModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={submitTransferRequest} disabled={transferLoading || !transferReason.trim()}>
+                {transferLoading ? <span className="spinner spinner-sm" /> : <Shield size={14} />}
+                Submit Transfer Request
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showSettings && (
