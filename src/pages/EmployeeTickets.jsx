@@ -17,8 +17,6 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
   const [feedbackRating, setFeedbackRating] = useState(0)
   const [feedbackComment, setFeedbackComment] = useState('')
   const [feedbackLoading, setFeedbackLoading] = useState(false)
-  const [workLogs, setWorkLogs] = useState([])
-  const [workLogsLoading, setWorkLogsLoading] = useState(false)
 
   const fetchTickets = async () => {
     setLoading(true)
@@ -77,25 +75,9 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
 
   useEffect(() => {
     if (!['feedback', 'worklog', 'history'].includes(activeTab)) return
-    if (activeTab === 'worklog') return
     const first = detailOptions[0]?.id || ''
     setDetailTicketId(first)
     loadTicketDetail(first)
-  }, [activeTab, tickets.length])
-
-  useEffect(() => {
-    if (activeTab !== 'worklog') return
-    ;(async () => {
-      setWorkLogsLoading(true)
-      try {
-        const { data } = await API.get('/tickets/worklogs/list')
-        setWorkLogs(data.data || [])
-      } catch (err) {
-        addToast(getFriendlyErrorMessage(err, 'Failed to load work logs'), 'error')
-      } finally {
-        setWorkLogsLoading(false)
-      }
-    })()
   }, [activeTab, tickets.length])
 
   const TicketCard = ({ t }) => (
@@ -169,7 +151,7 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
     if (detailLoading) {
       return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><span className="spinner spinner-lg" /></div>
     }
-    if (!ticketDetail) return null
+    if (activeTab !== 'worklog' && !ticketDetail) return null
 
     if (activeTab === 'feedback') {
       return (
@@ -229,38 +211,78 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
     }
 
     if (activeTab === 'worklog') {
+      const workLog = ticketDetail?.work_log
       return (
         <div className="card">
           <div style={{ fontWeight: 800, marginBottom: 6 }}>Work Log</div>
-          <div style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 16 }}>Resolution notes and service reports filed by support agents.</div>
-          {workLogsLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><span className="spinner spinner-lg" /></div>
-          ) : workLogs.length === 0 ? (
+          <div style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 16 }}>
+            Select a resolved ticket to view the diagnosis and service report filed by the agent.
+          </div>
+          {closed.length === 0 ? (
             <div className="empty-state" style={{ minHeight: 220 }}>
               <ClipboardList size={32} className="empty-state-icon" />
-              <div className="empty-state-title">No work logs yet</div>
-              <div className="empty-state-sub">Agent work logs appear here after a resolved ticket includes a service report.</div>
+              <div className="empty-state-title">No resolved tickets yet</div>
+              <div className="empty-state-sub">Work logs appear here after an agent resolves one of your tickets.</div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gap: 14 }}>
-              {workLogs.map(log => (
-                <div key={log._id || log.ticket_id} style={{ padding: 14, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 320px) minmax(0, 1fr)', gap: 16 }}>
+              <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+                {closed.map(ticket => (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    onClick={() => {
+                      setDetailTicketId(ticket.id)
+                      loadTicketDetail(ticket.id)
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      padding: 14,
+                      borderRadius: 'var(--r-md)',
+                      border: `1px solid ${detailTicketId === ticket.id ? 'var(--accent)' : 'var(--border)'}`,
+                      background: detailTicketId === ticket.id ? 'var(--accent-dim)' : 'var(--bg-secondary)',
+                      color: 'var(--text-1)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{ticket.display_id}</span>
+                      <span className={`badge badge-${ticket.status}`}>{ticket.status.replace('_', ' ')}</span>
+                    </div>
+                    <div style={{ fontWeight: 800, marginBottom: 6 }}>{ticket.title}</div>
+                    <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                      Agent: {ticket.operator_name || 'Unassigned'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ padding: 16, borderRadius: 'var(--r-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                {!ticketDetail ? (
+                  <div style={{ color: 'var(--text-3)', fontSize: 13 }}>Select a ticket to view its diagnosis report.</div>
+                ) : !workLog ? (
+                  <div className="empty-state" style={{ minHeight: 220 }}>
+                    <ClipboardList size={32} className="empty-state-icon" />
+                    <div className="empty-state-title">No diagnosis report filed</div>
+                    <div className="empty-state-sub">
+                      This ticket was resolved, but the agent did not file a work log through the resolution form.
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gap: 12 }}>
                     <div>
-                      <div style={{ fontWeight: 800 }}>{log.ticket?.title}</div>
+                      <div style={{ fontWeight: 800 }}>{ticketDetail.title}</div>
                       <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 3 }}>
-                        {log.ticket?.display_id} - {log.operator_name} - {new Date(log.created_at).toLocaleString()}
+                        {ticketDetail.display_id} - {workLog.operator_name} - {new Date(workLog.created_at).toLocaleString()}
                       </div>
                     </div>
-                    <span className="badge badge-neutral">{log.service_type?.replace('_', ' ')}</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                    <span className="badge badge-neutral" style={{ width: 'fit-content' }}>{workLog.service_type?.replace('_', ' ')}</span>
                     {[
-                      ['Diagnosis', log.diagnosis],
-                      ['Resolution', log.resolution],
-                      ['Parts changed', log.parts_changed],
-                      ['Time spent', `${log.time_spent_minutes || 0} minutes`],
-                      ['Notes', log.notes || 'No notes'],
+                      ['Diagnosis', workLog.diagnosis],
+                      ['Service report / Resolution', workLog.resolution],
+                      ['Parts serviced or changed', workLog.parts_changed],
+                      ['Time spent', `${workLog.time_spent_minutes || 0} minutes`],
+                      ['Agent notes', workLog.notes || 'No notes'],
                     ].map(([label, value]) => (
                       <div key={label} style={{ padding: 12, background: 'var(--bg-card)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
                         <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
@@ -268,8 +290,8 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
                       </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
           )}
         </div>
