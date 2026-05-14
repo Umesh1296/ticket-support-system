@@ -17,6 +17,8 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
   const [feedbackRating, setFeedbackRating] = useState(0)
   const [feedbackComment, setFeedbackComment] = useState('')
   const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [workLogs, setWorkLogs] = useState([])
+  const [workLogsLoading, setWorkLogsLoading] = useState(false)
 
   const fetchTickets = async () => {
     setLoading(true)
@@ -75,9 +77,25 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
 
   useEffect(() => {
     if (!['feedback', 'worklog', 'history'].includes(activeTab)) return
+    if (activeTab === 'worklog') return
     const first = detailOptions[0]?.id || ''
     setDetailTicketId(first)
     loadTicketDetail(first)
+  }, [activeTab, tickets.length])
+
+  useEffect(() => {
+    if (activeTab !== 'worklog') return
+    ;(async () => {
+      setWorkLogsLoading(true)
+      try {
+        const { data } = await API.get('/tickets/worklogs/list')
+        setWorkLogs(data.data || [])
+      } catch (err) {
+        addToast(getFriendlyErrorMessage(err, 'Failed to load work logs'), 'error')
+      } finally {
+        setWorkLogsLoading(false)
+      }
+    })()
   }, [activeTab, tickets.length])
 
   const TicketCard = ({ t }) => (
@@ -211,29 +229,48 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
     }
 
     if (activeTab === 'worklog') {
-      const workLog = ticketDetail.work_log
       return (
         <div className="card">
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>{ticketDetail.title}</div>
-          <div style={{ color: 'var(--text-3)', fontSize: 12, marginBottom: 16 }}>{ticketDetail.display_id}</div>
-          {workLog ? (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {[
-                ['Diagnosis', workLog.diagnosis],
-                ['Resolution', workLog.resolution],
-                ['Service type', workLog.service_type?.replace('_', ' ')],
-                ['Parts changed', workLog.parts_changed],
-                ['Time spent', `${workLog.time_spent_minutes || 0} minutes`],
-                ['Notes', workLog.notes || 'No notes'],
-              ].map(([label, value]) => (
-                <div key={label} style={{ padding: 12, background: 'var(--bg-secondary)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{value || 'Not recorded'}</div>
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Work Log</div>
+          <div style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 16 }}>Resolution notes and service reports filed by support agents.</div>
+          {workLogsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><span className="spinner spinner-lg" /></div>
+          ) : workLogs.length === 0 ? (
+            <div className="empty-state" style={{ minHeight: 220 }}>
+              <ClipboardList size={32} className="empty-state-icon" />
+              <div className="empty-state-title">No work logs yet</div>
+              <div className="empty-state-sub">Agent work logs appear here after a resolved ticket includes a service report.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 14 }}>
+              {workLogs.map(log => (
+                <div key={log._id || log.ticket_id} style={{ padding: 14, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 800 }}>{log.ticket?.title}</div>
+                      <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 3 }}>
+                        {log.ticket?.display_id} - {log.operator_name} - {new Date(log.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <span className="badge badge-neutral">{log.service_type?.replace('_', ' ')}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                    {[
+                      ['Diagnosis', log.diagnosis],
+                      ['Resolution', log.resolution],
+                      ['Parts changed', log.parts_changed],
+                      ['Time spent', `${log.time_spent_minutes || 0} minutes`],
+                      ['Notes', log.notes || 'No notes'],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ padding: 12, background: 'var(--bg-card)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.45 }}>{value || 'Not recorded'}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div style={{ color: 'var(--text-3)', fontSize: 13 }}>No work log has been filed for this ticket yet.</div>
           )}
         </div>
       )
@@ -284,12 +321,7 @@ export default function EmployeeTickets({ API, addToast, currentUser, onCreateTi
     }
 
     if (activeTab === 'worklog') {
-      return (
-        <>
-          <TicketPicker title="Select a resolved ticket to view work log" emptyText="Work logs appear after an agent resolves your ticket." />
-          {renderDetailCard()}
-        </>
-      )
+      return renderDetailCard()
     }
 
     if (activeTab === 'history') {

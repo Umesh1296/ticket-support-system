@@ -188,6 +188,34 @@ module.exports = (store) => {
     }
   })
 
+  // ===== GET work logs visible to the current user =====
+  router.get('/worklogs/list', async (req, res) => {
+    try {
+      let query = {}
+      if (req.user.role === ROLES.super_admin && req.query.manager_id) query = { manager_id: req.query.manager_id }
+      else if (req.user.role === ROLES.manager) query = { manager_id: req.user.id }
+      else if (req.user.role === ROLES.operator || req.user.role === ROLES.employee) query = { manager_id: req.user.manager_id }
+
+      const allTickets = await store.getTickets(query)
+      const visibleTickets = allTickets.filter((ticket) => canAccessTicket(req.user, ticket))
+      const ticketIds = visibleTickets.map(ticket => ticket.id)
+      const ticketsById = new Map(visibleTickets.map(ticket => [ticket.id, ticket]))
+
+      const logs = await WorkLog.find({ ticket_id: { $in: ticketIds } }).lean()
+      const data = logs
+        .map(log => ({
+          ...log,
+          ticket: ticketsById.get(log.ticket_id) || null,
+        }))
+        .filter(log => log.ticket)
+        .sort((left, right) => new Date(right.created_at) - new Date(left.created_at))
+
+      res.json({ success: true, data, count: data.length })
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message })
+    }
+  })
+
   // ===== POST operator transfer request =====
   router.post('/:id/transfer-request', async (req, res) => {
     try {
